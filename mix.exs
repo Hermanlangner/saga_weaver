@@ -1,24 +1,48 @@
 defmodule ExSaga.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/Hermanlangner/ex_saga"
+
   def project do
     [
       app: :ex_saga,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: package(),
+      docs: docs()
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
+  defp package do
+    [
+      name: "ex_saga",
+      description: """
+      Ex Saga is an NServiceBus Saga implementation in Elixir, while being abstracted away from storage and transport.
+      """,
+      maintainers: ["Herman Langner"],
+      links: %{"GitHub" => @source_url},
+      licenses: ["MIT"],
+      files: ~w(lib .formatter.exs mix.exs LICENSE README*)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_ref: "v#{@version}",
+      extras: ["README.md", "CHANGELOG.md"]
+    ]
+  end
+
   defp deps do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
