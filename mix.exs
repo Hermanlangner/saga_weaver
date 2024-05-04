@@ -11,8 +11,21 @@ defmodule ExSaga.MixProject do
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      test_coverage: [tool: ExCoveralls],
       package: package(),
       docs: docs()
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.github": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ]
     ]
   end
 
@@ -49,8 +62,9 @@ defmodule ExSaga.MixProject do
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:doctor, "~> 0.21.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:jason, "~> 1.2"},
-      {:sobelow, "~> 0.8", only: [:dev, :test]}
+      {:sobelow, "~> 0.8", only: [:dev, :test]},
+      {:excoveralls, "~> 0.18", only: :test},
+      {:jason, "~> 1.2"}
     ]
   end
 end
