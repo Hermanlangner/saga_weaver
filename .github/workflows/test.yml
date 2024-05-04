@@ -69,9 +69,10 @@ jobs:
 
       - name: Run tests
         run: mix test
+
       - name: Run coverage
         run: mix coveralls.github
-      - uses: codecov/codecov-action@v4
+
       - name: Scan for security vulnerabilities
         run: mix sobelow --exit --threshold medium
 
