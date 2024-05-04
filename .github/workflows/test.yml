@@ -76,6 +76,8 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-22.04
+    env:
+      HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
