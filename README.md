@@ -1,3 +1,4 @@
+[![Coverage Status](https://coveralls.io/repos/github/Hermanlangner/ex_saga/badge.svg?branch=main)](https://coveralls.io/github/Hermanlangner/ex_saga?branch=main)
 # ExSaga
 A saga pattern library to help manage distributed message orchestration
 
