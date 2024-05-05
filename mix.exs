@@ -64,7 +64,8 @@ defmodule ExSaga.MixProject do
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
-      {:jason, "~> 1.2"}
+      {:jason, "~> 1.2"},
+      {:redix, "~> 1.5"}
     ]
   end
 end
