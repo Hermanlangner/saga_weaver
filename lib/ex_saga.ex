@@ -12,6 +12,9 @@ defmodule ExSaga do
       :world
 
   """
+
+  alias ExSaga.RedisAdapter
+
   def hello do
     :world
   end
