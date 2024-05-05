@@ -15,8 +15,4 @@ defmodule ExSaga do
   def hello do
     :world
   end
-
-  def untested do
-    :world
-  end
 end
