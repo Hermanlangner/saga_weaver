@@ -5,11 +5,17 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifier do
 
   @behaviour SagaWeaver.Identifiers.SagaIdentifier
 
+  alias SagaWeaver.Identifiers.SagaIdentifier
+
+  @impl SagaIdentifier
   def unique_saga_id(message, entity_name, unique_saga_id_mapping) do
-    entity_name
-    |> to_string()
-    |> Kernel.<>(":")
-    |> Kernel.<>(get_unique_saga_id(message, unique_saga_id_mapping))
+    unique_id =
+      entity_name
+      |> to_string()
+      |> Kernel.<>(":")
+      |> Kernel.<>(get_unique_saga_id(message, unique_saga_id_mapping))
+
+    {:ok, unique_id}
   end
 
   defp get_unique_saga_id(message, unique_saga_id_mapping) do
