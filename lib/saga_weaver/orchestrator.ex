@@ -8,8 +8,9 @@ end
 defmodule SagaWeaver.Orchestrator do
   @behaviour SagaWeaver.OrchestratorBehaviour
 
-  alias SagaWeaver.{RedisAdapter, SagaSchema}
+  alias SagaWeaver.SagaSchema
   alias SagaWeaver.Identifiers.SagaIdentifier
+  alias SagaWeaver.Adapters.StorageAdapter
 
   @impl true
   @spec execute_saga(any(), any()) :: any()
@@ -23,7 +24,7 @@ defmodule SagaWeaver.Orchestrator do
     updated_entity = runner_module.handle_message(instance_case, message)
 
     if updated_entity.marked_as_completed do
-      RedisAdapter.complete_saga(updated_entity.unique_identifier)
+      StorageAdapter.complete_saga(updated_entity.unique_identifier)
       {:ok, "Saga completed"}
     end
   end
@@ -57,7 +58,7 @@ defmodule SagaWeaver.Orchestrator do
       marked_as_completed: false
     }
 
-    RedisAdapter.initialize_saga(initial_state)
+    StorageAdapter.initialize_saga(initial_state)
     initial_state
   end
 
@@ -69,6 +70,6 @@ defmodule SagaWeaver.Orchestrator do
       message,
       runner_module.identity_mapping()
     )
-    |> RedisAdapter.get_saga()
+    |> StorageAdapter.get_saga()
   end
 end
