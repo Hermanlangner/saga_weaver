@@ -1,18 +1,8 @@
-defmodule SagaWeaver.OrchestratorBehaviour do
-  @callback execute_saga(any(), any()) :: any()
-  @callback start_saga(any(), any()) :: any()
-  @callback retrieve_saga(any(), any()) :: any()
-  @callback initialize_saga(any(), any()) :: any()
-end
-
 defmodule SagaWeaver.Orchestrator do
-  @behaviour SagaWeaver.OrchestratorBehaviour
-
   alias SagaWeaver.SagaSchema
   alias SagaWeaver.Identifiers.SagaIdentifier
   alias SagaWeaver.Adapters.StorageAdapter
 
-  @impl true
   @spec execute_saga(any(), any()) :: any()
   def execute_saga(runner_module, message) do
     instance_case =
@@ -29,7 +19,6 @@ defmodule SagaWeaver.Orchestrator do
     end
   end
 
-  @impl true
   @spec start_saga(any(), any()) :: any()
   def start_saga(runner_module, message) do
     if message.__struct__ in runner_module.started_by() do
@@ -40,7 +29,6 @@ defmodule SagaWeaver.Orchestrator do
     end
   end
 
-  @impl true
   @spec initialize_saga(any(), any()) :: any()
   def initialize_saga(runner_module, message) do
     unique_saga_id =
@@ -62,7 +50,6 @@ defmodule SagaWeaver.Orchestrator do
     initial_state
   end
 
-  @impl true
   @spec retrieve_saga(any(), any()) :: any()
   def retrieve_saga(runner_module, message) do
     SagaIdentifier.unique_saga_id(
