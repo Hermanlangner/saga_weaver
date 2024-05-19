@@ -1,6 +1,5 @@
 defmodule SagaWeaver.RedisAdapter do
-  @behaviour SagaWeaver.AdapterBehaviour
-
+  @behaviour SagaWeaver.Behaviours.Adapter
   alias SagaWeaver.SagaSchema
   alias Redix
 
