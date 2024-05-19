@@ -1,14 +1,21 @@
-defmodule SagaWeaver.SagaRunner do
-  @behaviour SagaWeaver.SagaBehavior
+defmodule SagaWeaver.OrchestratorBehaviour do
+  @callback execute_saga(any(), any()) :: any()
+  @callback start_saga(any(), any()) :: any()
+  @callback retrieve_saga(any(), any()) :: any()
+  @callback initialize_saga(any(), any()) :: any()
+end
 
-  alias SagaWeaver.{RedisAdapter, SagaEntity, TestEvent1, TestEvent2}
-  alias SagaWeaver.Identifier
+defmodule SagaWeaver.Orchestrator do
+  @behaviour SagaWeaver.OrchestratorBehaviour
+
+  alias SagaWeaver.{RedisAdapter, SagaSchema}
+  alias SagaWeaver.Identifiers.SagaIdentifier
 
   @impl true
-  @spec run_saga(any(), any()) :: any()
-  def run_saga(runner_module, event) do
+  @spec execute_saga(any(), any()) :: any()
+  def execute_saga(runner_module, event) do
     instance_case =
-      case find_saga_instance(runner_module, event) do
+      case retrieve_saga(runner_module, event) do
         nil -> start_saga(runner_module, event)
         instance -> instance
       end
@@ -16,7 +23,7 @@ defmodule SagaWeaver.SagaRunner do
     updated_entity = runner_module.handle_event(instance_case, event)
 
     if updated_entity.marked_as_completed do
-      RedisAdapter.delete_saga_instance(updated_entity.unique_identifier)
+      RedisAdapter.complete_saga(updated_entity.unique_identifier)
       {:ok, "Saga completed"}
     end
   end
@@ -26,42 +33,42 @@ defmodule SagaWeaver.SagaRunner do
   def start_saga(runner_module, event) do
     if event.__struct__ in runner_module.started_by() do
       runner_module
-      |> create_instance(event)
+      |> initialize_saga(event)
     else
       {:error, "Event not supported"}
     end
   end
 
   @impl true
-  @spec create_instance(any(), any()) :: any()
-  def create_instance(runner_module, event) do
-    instance_name =
-      Identifier.instance_name(
+  @spec initialize_saga(any(), any()) :: any()
+  def initialize_saga(runner_module, event) do
+    unique_saga_id =
+      SagaIdentifier.unique_saga_id(
         runner_module.entity_name(),
         event,
         runner_module.identity_mapping()
       )
 
-    initial_state = %SagaEntity{
-      unique_identifier: instance_name,
+    initial_state = %SagaSchema{
+      unique_identifier: unique_saga_id,
       saga_name: runner_module.entity_name(),
       states: %{},
       context: %{},
       marked_as_completed: false
     }
 
-    RedisAdapter.create_saga_instance(initial_state)
+    RedisAdapter.initialize_saga(initial_state)
     initial_state
   end
 
   @impl true
-  @spec find_saga_instance(any(), any()) :: any()
-  def find_saga_instance(runner_module, event) do
-    Identifier.instance_name(
+  @spec retrieve_saga(any(), any()) :: any()
+  def retrieve_saga(runner_module, event) do
+    SagaIdentifier.unique_saga_id(
       runner_module.entity_name(),
       event,
       runner_module.identity_mapping()
     )
-    |> RedisAdapter.find_saga_instance()
+    |> RedisAdapter.get_saga()
   end
 end

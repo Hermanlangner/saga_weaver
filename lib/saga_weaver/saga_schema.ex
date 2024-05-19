@@ -1,4 +1,4 @@
-defmodule SagaWeaver.SagaEntity do
+defmodule SagaWeaver.SagaSchema do
   defstruct [:unique_identifier, :saga_name, :states, :context, :marked_as_completed]
 
   @type t :: %__MODULE__{

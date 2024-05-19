@@ -1,7 +1,7 @@
 defmodule SagaWeaver.RedisAdapter do
   @behaviour SagaWeaver.AdapterBehaviour
 
-  alias SagaWeaver.SagaEntity
+  alias SagaWeaver.SagaSchema
   alias Redix
 
   @redis_url "redis://localhost:6379"
@@ -22,7 +22,7 @@ defmodule SagaWeaver.RedisAdapter do
     end
   end
 
-  def create_saga_instance(%SagaEntity{} = saga) do
+  def initialize_saga(%SagaSchema{} = saga) do
     execute_with_optimistic_lock(saga.unique_identifier, fn ->
       [["SET", saga.unique_identifier, encode_entity(saga)]]
     end)
@@ -32,7 +32,7 @@ defmodule SagaWeaver.RedisAdapter do
     end
   end
 
-  def find_saga_instance(key) do
+  def get_saga(key) do
     case fetch_record(key) do
       {:ok, nil} -> nil
       {:ok, saga} -> {:ok, decode_entity(saga)}
@@ -40,8 +40,8 @@ defmodule SagaWeaver.RedisAdapter do
     end
   end
 
-  def mark_as_completed(%SagaEntity{} = saga) do
-    updated_saga = %SagaEntity{saga | marked_as_completed: true}
+  def mark_as_completed(%SagaSchema{} = saga) do
+    updated_saga = %SagaSchema{saga | marked_as_completed: true}
 
     execute_with_optimistic_lock(saga.unique_identifier, fn ->
       [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
@@ -52,14 +52,14 @@ defmodule SagaWeaver.RedisAdapter do
     end
   end
 
-  def delete_saga_instance(%SagaEntity{} = saga) do
+  def complete_saga(%SagaSchema{} = saga) do
     execute_with_optimistic_lock(saga.unique_identifier, fn ->
       [["DEL", saga.unique_identifier]]
     end)
   end
 
-  def assign_state(%SagaEntity{} = saga, state) do
-    updated_saga = %SagaEntity{saga | states: state}
+  def assign_state(%SagaSchema{} = saga, state) do
+    updated_saga = %SagaSchema{saga | states: state}
 
     execute_with_optimistic_lock(saga.unique_identifier, fn ->
       [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
@@ -70,8 +70,8 @@ defmodule SagaWeaver.RedisAdapter do
     end
   end
 
-  def assign_context(%SagaEntity{} = saga, context) do
-    updated_saga = %SagaEntity{saga | context: context}
+  def assign_context(%SagaSchema{} = saga, context) do
+    updated_saga = %SagaSchema{saga | context: context}
 
     execute_with_optimistic_lock(saga.unique_identifier, fn ->
       [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
@@ -115,7 +115,7 @@ defmodule SagaWeaver.RedisAdapter do
   defp handle_response({:error, reason}), do: {:error, reason}
 
   defp handle_error({:error, reason}) do
-    Logger.error("Redis error: #{inspect(reason)}")
+    # Logger.error("Redis error: #{inspect(reason)}")
     {:error, reason}
   end
 

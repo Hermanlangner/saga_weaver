@@ -1,9 +1,17 @@
+defmodule SagaWeaver.SagaBehaviour do
+  @callback saga_name() :: atom()
+  @callback started_by() :: [module()]
+  @callback how_to_find_saga() :: %{module() => (term() -> map())}
+  @callback handle_event(SagaWeaver.SagaSchema.t(), any()) ::
+              {:ok, SagaWeaver.SagaSchema.t()} | {:error, any()}
+end
+
 defmodule SagaWeaver.Saga do
-  def entity_name(), do: __MODULE__
+  def saga_name(), do: __MODULE__
 
   def started_by(), do: [TestEvent1]
 
-  def identity_key_mapping() do
+  def how_to_find_saga() do
     %{
       TestEvent1 => &%{id: &1.external_id},
       TestEvent2 => &%{id: &1.id}
