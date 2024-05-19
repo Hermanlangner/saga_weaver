@@ -1,4 +1,4 @@
-defmodule ExSaga.AdapterBehaviour do
+defmodule ExSaga.Behaviours.Adapter do
   alias ExSaga.SagaEntity
 
   @callback create_saga_instance(SagaEntity.t()) :: {:ok, SagaEntity.t()} | {:error, any()}

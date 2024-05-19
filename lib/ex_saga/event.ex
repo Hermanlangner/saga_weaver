@@ -1,8 +1,3 @@
-defmodule ExSaga.Event do
-  @callback name() :: atom()
-  @callback content_type() :: atom()
-end
-
 defmodule ExSaga.TestEvent1 do
   @behaviour ExSaga.Event
 
