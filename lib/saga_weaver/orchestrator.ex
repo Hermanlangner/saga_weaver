@@ -13,14 +13,14 @@ defmodule SagaWeaver.Orchestrator do
 
   @impl true
   @spec execute_saga(any(), any()) :: any()
-  def execute_saga(runner_module, event) do
+  def execute_saga(runner_module, message) do
     instance_case =
-      case retrieve_saga(runner_module, event) do
-        nil -> start_saga(runner_module, event)
+      case retrieve_saga(runner_module, message) do
+        nil -> start_saga(runner_module, message)
         instance -> instance
       end
 
-    updated_entity = runner_module.handle_event(instance_case, event)
+    updated_entity = runner_module.handle_message(instance_case, message)
 
     if updated_entity.marked_as_completed do
       RedisAdapter.complete_saga(updated_entity.unique_identifier)
@@ -30,22 +30,22 @@ defmodule SagaWeaver.Orchestrator do
 
   @impl true
   @spec start_saga(any(), any()) :: any()
-  def start_saga(runner_module, event) do
-    if event.__struct__ in runner_module.started_by() do
+  def start_saga(runner_module, message) do
+    if message.__struct__ in runner_module.started_by() do
       runner_module
-      |> initialize_saga(event)
+      |> initialize_saga(message)
     else
-      {:error, "Event not supported"}
+      {:error, "Message not supported"}
     end
   end
 
   @impl true
   @spec initialize_saga(any(), any()) :: any()
-  def initialize_saga(runner_module, event) do
+  def initialize_saga(runner_module, message) do
     unique_saga_id =
       SagaIdentifier.unique_saga_id(
         runner_module.entity_name(),
-        event,
+        message,
         runner_module.identity_mapping()
       )
 
@@ -63,10 +63,10 @@ defmodule SagaWeaver.Orchestrator do
 
   @impl true
   @spec retrieve_saga(any(), any()) :: any()
-  def retrieve_saga(runner_module, event) do
+  def retrieve_saga(runner_module, message) do
     SagaIdentifier.unique_saga_id(
       runner_module.entity_name(),
-      event,
+      message,
       runner_module.identity_mapping()
     )
     |> RedisAdapter.get_saga()

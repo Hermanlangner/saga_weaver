@@ -7,15 +7,15 @@ defmodule SagaWeaver.Identifiers.SagaIdentifier do
   This module is responsible for generating unique identifiers for sagas.
   """
 
-  def unique_saga_id(event, entity_name, unique_saga_id_mapping) do
+  def unique_saga_id(message, entity_name, unique_saga_id_mapping) do
     entity_name
     |> to_string()
     |> Kernel.<>(":")
-    |> Kernel.<>(get_unique_saga_id(event, unique_saga_id_mapping))
+    |> Kernel.<>(get_unique_saga_id(message, unique_saga_id_mapping))
   end
 
-  defp get_unique_saga_id(event, unique_saga_id_mapping) do
-    unique_saga_ids = unique_saga_id_mapping[event.__struct__].(event)
+  defp get_unique_saga_id(message, unique_saga_id_mapping) do
+    unique_saga_ids = unique_saga_id_mapping[message.__struct__].(message)
 
     unique_saga_ids
     |> Enum.reduce("", fn {key, value}, acc ->
