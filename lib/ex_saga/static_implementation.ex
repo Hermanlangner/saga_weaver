@@ -11,7 +11,7 @@ defmodule ExSaga.StaticImplementation do
     entity_name()
     |> to_string()
     |> Kernel.<>(":")
-    |> Kernel.<>(get_identity_key(event))
+    |> Kernel.<>(get_identity_key(event, identity_key_mapping()))
   end
 
   @impl true
@@ -89,15 +89,15 @@ defmodule ExSaga.StaticImplementation do
   @spec find_saga_instance(any()) :: any()
   def find_saga_instance(event), do: RedisAdapter.fetch_record(instance_name(event))
 
-  defp identity_key_mapping(),
+  def identity_key_mapping(),
     do: %{
       TestEvent1 => &%{id: &1.external_id},
       TestEvent2 => &%{id: &1.id}
     }
 
-  def get_identity_key(event) do
+  def get_identity_key(event, identity_key_mapping) do
     entity_name = to_string(entity_name())
-    identity_keys = identity_key_mapping()[event.__struct__].(event)
+    identity_keys = identity_key_mapping[event.__struct__].(event)
 
     identity_keys
     |> Enum.reduce("#{entity_name}:", fn {key, value}, acc ->
