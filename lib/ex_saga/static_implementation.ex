@@ -20,9 +20,17 @@ defmodule ExSaga.StaticImplementation do
   @impl true
   @spec run_saga(any()) :: any()
   def run_saga(event) do
-    case find_saga_instance(event) do
-      nil -> start_saga(event)
-      instance -> handle_event(instance, event)
+    instance_case =
+      case find_saga_instance(event) do
+        nil -> start_saga(event)
+        instance -> instance
+      end
+
+    updated_entity = handle_event(instance_case, event)
+
+    if updated_entity.marked_as_completed do
+      RedisAdapter.delete_record(updated_entity.unique_identifier)
+      {:ok, "Saga completed"}
     end
   end
 
@@ -48,11 +56,13 @@ defmodule ExSaga.StaticImplementation do
   @spec handle_event(ExSaga.SagaEntity.t(), any()) :: any()
   def handle_event(entity, %TestEvent1{} = event) do
     RedisAdapter.write_record("test_event_1", event)
+    entity
   end
 
   @impl true
   def handle_event(entity, %TestEvent2{} = event) do
     RedisAdapter.write_record("test_event_2", event)
+    entity
   end
 
   @impl true
@@ -62,13 +72,22 @@ defmodule ExSaga.StaticImplementation do
   @spec create_instance(any()) :: any()
   def create_instance(event) do
     instance_name = instance_name(event)
-    RedisAdapter.write_record(instance_name, event)
-    instance_name
+
+    initial_state = %SagaEntity{
+      unique_identifier: instance_name,
+      saga_name: entity_name(),
+      states: %{},
+      context: %{},
+      marked_as_completed: false
+    }
+
+    RedisAdapter.write_record(instance_name, initial_state)
+    initial_state
   end
 
   @impl true
   @spec find_saga_instance(any()) :: any()
-  def find_saga_instance(event), do: RedisAdapter.read_record(instance_name(event))
+  def find_saga_instance(event), do: RedisAdapter.fetch_record(instance_name(event))
 
   defp identity_key_mapping(),
     do: %{

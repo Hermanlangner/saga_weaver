@@ -4,7 +4,7 @@ defmodule ExSaga.SagaEntity do
   @type t :: %__MODULE__{
           unique_identifier: String.t(),
           saga_name: atom(),
-          states: list(),
+          states: map(),
           context: map(),
           marked_as_completed: boolean()
         }

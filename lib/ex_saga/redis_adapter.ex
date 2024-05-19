@@ -1,48 +1,129 @@
 defmodule ExSaga.RedisAdapter do
-  @moduledoc """
-  Redis adapter for ExSaga.
+  @behaviour ExSaga.AdapterBehaviour
 
-  FOR initial iterations I'm not going to fuss about creating tons of new connections to Redis.
-  """
+  alias ExSaga.SagaEntity
   alias Redix
 
-  # Assuming Redis is running locally on the default port
   @redis_url "redis://localhost:6379"
 
-  # Writes a record to Redis
-  def write_record(key, value) do
-    execute_command(["SET", key, value])
+  # Optimistic locking function
+  defp execute_with_optimistic_lock(key, fun) do
+    with {:ok, conn} <- connection(),
+         {:ok, _} <- Redix.command(conn, ["WATCH", key]) do
+      result = fun.()
+
+      case Redix.pipeline(conn, [["MULTI"] | result ++ [["EXEC"]]]) do
+        {:ok, ["OK" | _]} -> :ok
+        {:ok, nil} -> {:error, :transaction_failed}
+        error -> handle_error(error)
+      end
+    else
+      error -> handle_error(error)
+    end
   end
 
-  # Fetches a record from Redis
-  def fetch_record(key) do
-    execute_command(["GET", key])
+  def create_saga_instance(%SagaEntity{} = saga) do
+    execute_with_optimistic_lock(saga.unique_identifier, fn ->
+      [["SET", saga.unique_identifier, encode_entity(saga)]]
+    end)
+    |> case do
+      :ok -> {:ok, saga}
+      error -> error
+    end
   end
 
-  # Locks a record for writes (simple locking mechanism)
-  def lock_record(key, timeout \\ 3000) do
-    # Attempt to set a lock key
-    execute_command(["SET", "#{key}:lock", "locked", "NX", "PX", Integer.to_string(timeout)])
+  def find_saga_instance(key) do
+    case fetch_record(key) do
+      {:ok, nil} -> nil
+      {:ok, saga} -> {:ok, decode_entity(saga)}
+      {:error, _} = error -> error
+    end
   end
 
-  # Deletes a record from Redis
-  def delete_record(key) do
-    execute_command(["DEL", key])
+  def mark_as_completed(%SagaEntity{} = saga) do
+    updated_saga = %SagaEntity{saga | marked_as_completed: true}
+
+    execute_with_optimistic_lock(saga.unique_identifier, fn ->
+      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    end)
+    |> case do
+      :ok -> {:ok, updated_saga}
+      error -> error
+    end
   end
 
-  # Helper function to execute a command and parse response
-  defp execute_command(commands) do
+  def delete_saga_instance(%SagaEntity{} = saga) do
+    execute_with_optimistic_lock(saga.unique_identifier, fn ->
+      [["DEL", saga.unique_identifier]]
+    end)
+  end
+
+  def assign_state(%SagaEntity{} = saga, state) do
+    updated_saga = %SagaEntity{saga | states: state}
+
+    execute_with_optimistic_lock(saga.unique_identifier, fn ->
+      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    end)
+    |> case do
+      :ok -> {:ok, updated_saga}
+      error -> error
+    end
+  end
+
+  def assign_context(%SagaEntity{} = saga, context) do
+    updated_saga = %SagaEntity{saga | context: context}
+
+    execute_with_optimistic_lock(saga.unique_identifier, fn ->
+      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    end)
+    |> case do
+      :ok -> {:ok, updated_saga}
+      error -> error
+    end
+  end
+
+  # Redis operations
+
+  defp write_record(key, value) do
     connection()
-    |> Redix.command(commands)
+    |> Redix.command(["SET", key, encode_entity(value)])
     |> handle_response()
   end
 
-  # Handle Redis response
+  defp fetch_record(key) do
+    connection()
+    |> Redix.command(["GET", key])
+    |> handle_response()
+  end
+
+  defp delete_record(key) do
+    connection()
+    |> Redix.command(["DEL", key])
+    |> handle_response()
+  end
+
+  # Helper functions
+
+  defp connection() do
+    case Redix.start_link(@redis_url) do
+      {:ok, conn} -> {:ok, conn}
+      error -> handle_error(error)
+    end
+  end
+
   defp handle_response({:ok, result}), do: {:ok, result}
   defp handle_response({:error, reason}), do: {:error, reason}
 
-  defp connection() do
-    {:ok, conn} = Redix.start_link(@redis_url)
-    conn
+  defp handle_error({:error, reason}) do
+    Logger.error("Redis error: #{inspect(reason)}")
+    {:error, reason}
+  end
+
+  defp encode_entity(entity) do
+    :erlang.term_to_binary(entity)
+  end
+
+  defp decode_entity(binary) do
+    :erlang.binary_to_term(binary)
   end
 end
