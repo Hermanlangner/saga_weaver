@@ -1,6 +1,6 @@
-defmodule ExSaga do
+defmodule SagaWeaver do
   @moduledoc """
-  Documentation for `ExSaga`.
+  Documentation for `SagaWeaver`.
   """
 
   @doc """
@@ -8,12 +8,12 @@ defmodule ExSaga do
 
   ## Examples
 
-      iex> ExSaga.hello()
+      iex> SagaWeaver.hello()
       :world
 
   """
 
-  alias ExSaga.RedisAdapter
+  alias SagaWeaver.RedisAdapter
 
   def hello do
     :world

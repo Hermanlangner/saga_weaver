@@ -1,7 +1,7 @@
-defmodule ExSaga.RedisAdapter do
-  @behaviour ExSaga.AdapterBehaviour
+defmodule SagaWeaver.RedisAdapter do
+  @behaviour SagaWeaver.AdapterBehaviour
 
-  alias ExSaga.SagaEntity
+  alias SagaWeaver.SagaEntity
   alias Redix
 
   @redis_url "redis://localhost:6379"

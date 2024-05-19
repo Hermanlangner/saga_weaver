@@ -1,4 +1,4 @@
-defmodule ExSaga.Identifier do
+defmodule SagaWeaver.Identifier do
   @moduledoc """
   This module is responsible for generating unique identifiers for sagas.
   """

@@ -1,12 +1,12 @@
-defmodule ExSaga.MixProject do
+defmodule SagaWeaver.MixProject do
   use Mix.Project
 
   @version "0.1.1"
-  @source_url "https://github.com/Hermanlangner/ex_saga"
+  @source_url "https://github.com/Hermanlangner/saga_weaver"
 
   def project do
     [
-      app: :ex_saga,
+      app: :saga_weaver,
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
@@ -37,7 +37,7 @@ defmodule ExSaga.MixProject do
 
   defp package do
     [
-      name: "ex_saga",
+      name: "saga_weaver",
       description: """
       Ex Saga is an NServiceBus Saga implementation in Elixir, while being abstracted away from storage and transport.
       """,

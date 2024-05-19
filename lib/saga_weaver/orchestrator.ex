@@ -1,8 +1,8 @@
-defmodule ExSaga.SagaRunner do
-  @behaviour ExSaga.SagaBehavior
+defmodule SagaWeaver.SagaRunner do
+  @behaviour SagaWeaver.SagaBehavior
 
-  alias ExSaga.{RedisAdapter, SagaEntity, TestEvent1, TestEvent2}
-  alias ExSaga.Identifier
+  alias SagaWeaver.{RedisAdapter, SagaEntity, TestEvent1, TestEvent2}
+  alias SagaWeaver.Identifier
 
   @impl true
   @spec run_saga(any(), any()) :: any()

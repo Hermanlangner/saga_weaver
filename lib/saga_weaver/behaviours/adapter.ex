@@ -1,5 +1,5 @@
-defmodule ExSaga.Behaviours.Adapter do
-  alias ExSaga.SagaEntity
+defmodule SagaWeaver.Behaviours.Adapter do
+  alias SagaWeaver.SagaEntity
 
   @callback create_saga_instance(SagaEntity.t()) :: {:ok, SagaEntity.t()} | {:error, any()}
   @callback find_saga_instance(any()) :: {:ok, SagaEntity.t()} | nil

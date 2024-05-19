@@ -1,5 +1,5 @@
-defmodule ExSaga.TestEvent1 do
-  @behaviour ExSaga.Event
+defmodule SagaWeaver.TestEvent1 do
+  @behaviour SagaWeaver.Event
 
   defstruct [:external_id, :name]
 
@@ -9,8 +9,8 @@ defmodule ExSaga.TestEvent1 do
   def content_type, do: TestEvent1
 end
 
-defmodule ExSaga.TestEvent2 do
-  @behaviour ExSaga.Event
+defmodule SagaWeaver.TestEvent2 do
+  @behaviour SagaWeaver.Event
 
   defstruct [:id, :name]
 

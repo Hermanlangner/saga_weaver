@@ -1,4 +1,4 @@
-defmodule ExSaga.Saga do
+defmodule SagaWeaver.Saga do
   def entity_name(), do: __MODULE__
 
   def started_by(), do: [TestEvent1]
