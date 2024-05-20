@@ -83,21 +83,9 @@ defmodule SagaWeaver.RedisAdapter do
 
   # Redis operations
 
-  defp write_record(key, value) do
-    connection()
-    |> Redix.command(["SET", key, encode_entity(value)])
-    |> handle_response()
-  end
-
   defp fetch_record(key) do
     connection()
     |> Redix.command(["GET", key])
-    |> handle_response()
-  end
-
-  defp delete_record(key) do
-    connection()
-    |> Redix.command(["DEL", key])
     |> handle_response()
   end
 
