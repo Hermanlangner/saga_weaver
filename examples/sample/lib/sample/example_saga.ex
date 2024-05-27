@@ -22,14 +22,14 @@ defmodule ExampleSaga do
   end
 
   @impl true
-  def handle_event(saga, %ExampleStart{} = event) do
+  def handle_message(saga, %ExampleStart{} = event) do
     # Handle ExampleStart and update saga state
     require IEx; IEx.pry
     {:ok, saga}
   end
 
   @impl true
-  def handle_event(saga, %ExampleFinish{} = event) do
+  def handle_message(saga, %ExampleFinish{} = event) do
     # Handle ExampleFinish and mark saga as completed
     require IEx; IEx.pry
     updated_saga = %{saga | marked_as_completed: true}
@@ -37,5 +37,5 @@ defmodule ExampleSaga do
   end
 
   @impl true
-  def handle_event(_, _), do: {:error, "Event not recognized"}
+  def handle_message(_, _), do: {:error, "Event not recognized"}
 end

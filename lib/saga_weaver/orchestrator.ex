@@ -5,13 +5,13 @@ defmodule SagaWeaver.Orchestrator do
 
   @spec execute_saga(any(), any()) :: any()
   def execute_saga(saga, message) do
-    instance_case =
+    {:ok, instance_case} =
       case retrieve_saga(saga, message) do
         nil -> start_saga(saga, message)
         instance -> instance
       end
 
-    updated_entity = saga.handle_message(instance_case, message)
+    {:ok, updated_entity} = saga.handle_message(instance_case, message)
 
     if updated_entity.marked_as_completed do
       StorageAdapter.complete_saga(updated_entity.unique_identifier)
