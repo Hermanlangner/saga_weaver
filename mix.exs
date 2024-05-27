@@ -9,6 +9,7 @@ defmodule SagaWeaver.MixProject do
       app: :saga_weaver,
       version: @version,
       elixir: "~> 1.15",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -35,6 +36,9 @@ defmodule SagaWeaver.MixProject do
       # mod: {SagaWeaver, []}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
 
   defp package do
     [
@@ -65,6 +69,7 @@ defmodule SagaWeaver.MixProject do
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
+      {:elixir_uuid, "~>1.2", only: [:dev, :test]},
       {:jason, "~> 1.2"},
       {:redix, "~> 1.5"},
       {:gen_stage, "~> 1.2.1"}

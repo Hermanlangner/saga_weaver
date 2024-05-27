@@ -1,5 +1,5 @@
 defmodule SagaWeaver.Adapters.StorageAdapter do
-  alias SagaWeaver.RedisAdapter
+  alias SagaWeaver.Adapters.RedisAdapter
   alias SagaWeaver.SagaSchema
 
   @callback initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()} | {:error, any()}

@@ -3,8 +3,6 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   alias SagaWeaver.SagaSchema
   alias Redix
 
-  @redis_url "redis://localhost:6379"
-
   # Optimistic locking function
   defp execute_with_optimistic_lock(key, fun) do
     with conn <- connection(),

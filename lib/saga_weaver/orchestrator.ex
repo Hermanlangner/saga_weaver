@@ -33,9 +33,9 @@ defmodule SagaWeaver.Orchestrator do
   def initialize_saga(saga, message) do
     unique_saga_id =
       SagaIdentifier.unique_saga_id(
-        saga.entity_name(),
         message,
-        saga.identity_mapping()
+        saga.entity_name(),
+        saga.identity_key_mapping()
       )
 
     initial_state = %SagaSchema{
@@ -53,8 +53,8 @@ defmodule SagaWeaver.Orchestrator do
   @spec retrieve_saga(any(), any()) :: any()
   def retrieve_saga(saga, message) do
     SagaIdentifier.unique_saga_id(
-      saga.entity_name(),
       message,
+      saga.entity_name(),
       saga.identity_key_mapping()
     )
     |> StorageAdapter.get_saga()
