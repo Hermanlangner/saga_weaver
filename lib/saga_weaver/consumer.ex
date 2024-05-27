@@ -3,6 +3,7 @@ defmodule SagaWeaver.Consumer do
 
   alias SagaWeaver.Orchestrator
 
+  @spec start_link(any()) :: {:ok, pid()}
   def start_link(event) do
     # Note: this function must return the format of `{:ok, pid}` and like
     # all children started by a Supervisor, the process must be linked

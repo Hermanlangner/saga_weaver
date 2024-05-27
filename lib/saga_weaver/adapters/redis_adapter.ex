@@ -8,8 +8,6 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     with conn <- connection(),
          {:ok, _} <- Redix.command(conn, ["WATCH", key]) do
       result = fun.()
-      require IEx
-      IEx.pry()
 
       case Redix.pipeline(conn, [["MULTI"] | result ++ [["EXEC"]]]) do
         {:ok, ["OK" | _]} -> :ok
@@ -102,7 +100,6 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   defp handle_response({:error, reason}), do: {:error, reason}
 
   defp handle_error({:error, reason}) do
-    # Logger.error("Redis error: #{inspect(reason)}")
     {:error, reason}
   end
 
