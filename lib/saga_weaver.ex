@@ -1,21 +1,26 @@
 defmodule SagaWeaver do
-  @moduledoc """
-  Documentation for `SagaWeaver`.
-  """
+  use Supervisor
 
-  @doc """
-  Hello world.
+  alias SagaWeaver.Producer
+  alias SagaWeaver.ConsumerSupervisor
 
-  ## Examples
+  @impl Supervisor
+  def init(_args) do
+    children = [
+      {Redix, []},
+      {Producer, []},
+      {ConsumerSupervisor, []}
+    ]
 
-      iex> SagaWeaver.hello()
-      :world
+    Supervisor.init(children, strategy: :one_for_one)
+  end
 
-  """
+  def start_link(opts) do
+    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+  end
 
-  alias SagaWeaver.RedisAdapter
-
-  def hello do
-    :world
+  # GenServer Callbacks
+  def execute_saga(saga, message) do
+    GenServer.call(Producer, {:execute_saga, saga, message}, :infinity)
   end
 end

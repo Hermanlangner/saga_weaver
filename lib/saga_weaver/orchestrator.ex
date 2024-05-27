@@ -55,7 +55,7 @@ defmodule SagaWeaver.Orchestrator do
     SagaIdentifier.unique_saga_id(
       saga.entity_name(),
       message,
-      saga.identity_mapping()
+      saga.identity_key_mapping()
     )
     |> StorageAdapter.get_saga()
   end

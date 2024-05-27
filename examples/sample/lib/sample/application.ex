@@ -17,7 +17,8 @@ defmodule Sample.Application do
       # Start a worker by calling: Sample.Worker.start_link(arg)
       # {Sample.Worker, arg},
       # Start to serve requests, typically the last entry
-      SampleWeb.Endpoint
+      SampleWeb.Endpoint,
+      {SagaWeaver, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

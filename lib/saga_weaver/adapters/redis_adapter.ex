@@ -1,4 +1,4 @@
-defmodule SagaWeaver.RedisAdapter do
+defmodule SagaWeaver.Adapters.RedisAdapter do
   @behaviour SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.SagaSchema
   alias Redix
@@ -7,9 +7,11 @@ defmodule SagaWeaver.RedisAdapter do
 
   # Optimistic locking function
   defp execute_with_optimistic_lock(key, fun) do
-    with {:ok, conn} <- connection(),
+    with conn <- connection(),
          {:ok, _} <- Redix.command(conn, ["WATCH", key]) do
       result = fun.()
+      require IEx
+      IEx.pry()
 
       case Redix.pipeline(conn, [["MULTI"] | result ++ [["EXEC"]]]) do
         {:ok, ["OK" | _]} -> :ok
@@ -92,8 +94,8 @@ defmodule SagaWeaver.RedisAdapter do
   # Helper functions
 
   defp connection() do
-    case Redix.start_link(@redis_url) do
-      {:ok, conn} -> {:ok, conn}
+    case Redix.start_link("redis://localhost:6379") do
+      {:ok, conn} -> conn
       error -> handle_error(error)
     end
   end

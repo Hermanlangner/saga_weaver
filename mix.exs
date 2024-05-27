@@ -32,6 +32,7 @@ defmodule SagaWeaver.MixProject do
   def application do
     [
       extra_applications: [:logger]
+      # mod: {SagaWeaver, []}
     ]
   end
 
@@ -65,7 +66,8 @@ defmodule SagaWeaver.MixProject do
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
       {:jason, "~> 1.2"},
-      {:redix, "~> 1.5"}
+      {:redix, "~> 1.5"},
+      {:gen_stage, "~> 1.2.1"}
     ]
   end
 end
