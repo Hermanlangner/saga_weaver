@@ -23,4 +23,15 @@ defmodule SagaWeaver do
   def execute_saga(saga, message) do
     GenServer.call(Producer, {:execute_saga, saga, message}, :infinity)
   end
+
+  def retrieve_saga(saga, message) do
+    unique_saga_id =
+      SagaWeaver.Identifiers.DefaultIdentifier.unique_saga_id(
+        message,
+        saga.entity_name(),
+        saga.identity_key_mapping()
+      )
+
+    SagaWeaver.Adapters.StorageAdapter.get_saga(unique_saga_id)
+  end
 end

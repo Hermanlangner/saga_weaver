@@ -16,6 +16,8 @@ defmodule SagaWeaver.Orchestrator do
     if updated_entity.marked_as_completed do
       StorageAdapter.complete_saga(updated_entity)
       {:ok, updated_entity}
+    else
+      {:ok, updated_entity}
     end
   end
 
