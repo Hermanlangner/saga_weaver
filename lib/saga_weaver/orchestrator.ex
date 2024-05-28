@@ -14,8 +14,8 @@ defmodule SagaWeaver.Orchestrator do
     {:ok, updated_entity} = saga.handle_message(instance_case, message)
 
     if updated_entity.marked_as_completed do
-      StorageAdapter.complete_saga(updated_entity.unique_identifier)
-      {:ok, "Saga completed"}
+      StorageAdapter.complete_saga(updated_entity)
+      {:ok, updated_entity}
     end
   end
 
@@ -47,7 +47,6 @@ defmodule SagaWeaver.Orchestrator do
     }
 
     StorageAdapter.initialize_saga(initial_state)
-    initial_state
   end
 
   @spec retrieve_saga(any(), any()) :: any()
