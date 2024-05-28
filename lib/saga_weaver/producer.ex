@@ -17,19 +17,19 @@ defmodule SagaWeaver.Producer do
   @impl true
   def handle_call({:execute_saga, saga, message}, from, {queue, demand}) do
     queue = :queue.in({saga, message, from}, queue)
-    IO.puts("Producer received execute_saga call")
+    #  IO.puts("Producer received execute_saga call")
     dispatch_events(queue, demand)
   end
 
   @impl true
   def handle_demand(demand, {queue, _demand}) do
-    IO.puts("Producer handling demand: #{demand}")
+    #  IO.puts("Producer handling demand: #{demand}")
     dispatch_events(queue, demand)
   end
 
   defp dispatch_events(queue, demand) do
     {events, queue} = dequeue_events(queue, demand, [])
-    IO.puts("Producer dispatching events: #{inspect(events)}")
+    #  IO.puts("Producer dispatching events: #{inspect(events)}")
     {:noreply, events, {queue, demand - length(events)}}
   end
 

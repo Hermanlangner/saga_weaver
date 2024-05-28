@@ -10,12 +10,15 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
       result = fun.()
 
       case Redix.pipeline(conn, [["MULTI"] | result ++ [["EXEC"]]]) do
-        {:ok, ["OK" | _]} -> :ok
-        {:ok, nil} -> {:error, :transaction_failed}
-        error -> handle_error(error)
+        {:ok, ["OK", "QUEUED", _]} ->
+          :ok
+
+        error ->
+          handle_error(error)
       end
     else
-      error -> handle_error(error)
+      error ->
+        handle_error(error)
     end
   end
 
@@ -44,8 +47,12 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
       [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
     end)
     |> case do
-      :ok -> {:ok, updated_saga}
-      error -> error
+      :ok ->
+        {:ok, updated_saga}
+
+      error ->
+        IO.inspect(error)
+        {:error, error}
     end
   end
 
@@ -56,14 +63,26 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def assign_state(%SagaSchema{} = saga, state) do
-    updated_saga = %SagaSchema{saga | states: state}
+    conn = connection()
 
-    execute_with_optimistic_lock(saga.unique_identifier, fn ->
-      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    retry_until_ok(fn ->
+      retry_assign_state(conn, saga.unique_identifier, state)
     end)
-    |> case do
-      :ok -> {:ok, updated_saga}
-      error -> error
+
+    get_saga(saga.unique_identifier)
+  end
+
+  defp retry_assign_state(conn, unique_identifier, state) do
+    apply_watch(conn, unique_identifier)
+    {:ok, saga} = get_saga(unique_identifier)
+    saga = %SagaSchema{saga | states: Map.merge(saga.states, state)}
+
+    transaction_result =
+      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+
+    case transaction_result do
+      :ok -> {:ok, saga}
+      {:error, :transaction_failed} -> :error
     end
   end
 
@@ -93,6 +112,34 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     case Redix.start_link("redis://localhost:6379") do
       {:ok, conn} -> conn
       error -> handle_error(error)
+    end
+  end
+
+  defp apply_watch(conn, key) do
+    Redix.command(conn, ["WATCH", key])
+  end
+
+  defp execute_transaction(conn, commands) do
+    case Redix.pipeline(conn, [["MULTI"] | commands ++ [["EXEC"]]]) do
+      {:ok, ["OK", "QUEUED", nil]} ->
+        {:error, :transaction_failed}
+
+      {:ok, ["OK", "QUEUED", _]} ->
+        :ok
+
+      error ->
+        handle_error(error)
+    end
+  end
+
+  defp retry_until_ok(fun, delay \\ 0) do
+    case fun.() do
+      {:ok, _} ->
+        :ok
+
+      :error ->
+        Process.sleep(delay)
+        retry_until_ok(fun, delay)
     end
   end
 

@@ -32,10 +32,10 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
       }
     end
 
-    def handle_message(%SagaSchema{} = instance, %FanOutMessage{} = message) do
+    def handle_message(%SagaSchema{} = instance, %FanOutMessage{} = _message) do
       fan_in_ids =
         1..100
-        |> Enum.each(%{}, fn id, acc ->
+        |> Enum.reduce(%{}, fn id, acc ->
           Map.put(acc, id, false)
         end)
 
@@ -45,8 +45,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
     end
 
     def handle_message(%SagaSchema{} = instance, %FanInMessage{} = message) do
-      fan_in_ids = instance.states.fan_in_ids |> Map.put(message.id, true)
-      instance = instance |> SagaSchema.assign_state(:fan_in_ids, fan_in_ids)
+      instance = instance |> SagaSchema.assign_state(message.id, true)
 
       if ready_to_complete?(instance) do
         {:ok, instance |> SagaSchema.mark_as_completed()}
@@ -56,12 +55,12 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
     end
 
     defp ready_to_complete?(instance) do
-      Map.values(instance.states.fan_in_ids)
+      Map.values(instance.states)
       |> Enum.all?(fn value -> value end)
     end
   end
 
-  setup context do
+  setup _context do
     start_supervised(SagaWeaver)
 
     :ok
@@ -70,14 +69,14 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
   test "Synchronous Fan out and Fan in completes saga" do
     fan_out_message = %FanOutMessage{id: 1, name: "test"}
 
-    {:ok, fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
+    {:ok, _fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
 
     fan_in_messages =
       1..100
       |> Enum.map(fn id -> %FanInMessage{id: id, fanout_id: 1} end)
 
     Enum.each(fan_in_messages, fn message ->
-      {:ok, fan_in_saga} = SagaWeaver.execute_saga(FanOutSaga, message)
+      {:ok, _fan_in_saga} = SagaWeaver.execute_saga(FanOutSaga, message)
     end)
 
     fan_out_saga = SagaWeaver.retrieve_saga(FanOutSaga, fan_out_message)
@@ -92,7 +91,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
       1..100
       |> Enum.map(fn id -> %FanInMessage{id: id, fanout_id: 1} end)
 
-    {:ok, fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
+    {:ok, _fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
 
     Task.async_stream(
       fan_in_messages,
