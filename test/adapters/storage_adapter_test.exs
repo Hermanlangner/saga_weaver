@@ -2,21 +2,18 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   @moduledoc """
    While only the RedisAdapter is implemented completely, The StorageAdapterTests will mostly test scenarios all adapters should be able to handle.
   """
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   alias SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.SagaSchema
 
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
-    {:ok, conn: conn}
-  end
 
-  setup context do
     on_exit(fn ->
-      Redix.command(context[:conn], ["FLUSHALL"])
+      Redix.command(conn, ["FLUSHALL"])
     end)
 
-    :ok
+    {:ok, conn: conn}
   end
 
   defp create_saga(id, name) do
@@ -30,7 +27,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "initialize_saga/1" do
-    test "Multiple initializes all return the latest instance instead of initializing", context do
+    test "Multiple initializes all return the latest instance instead of initializing" do
       saga = create_saga(1, "example_saga")
 
       result_list =
@@ -50,7 +47,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "get_saga/1" do
-    test "returns a saga if it exists", context do
+    test "returns a saga if it exists" do
       saga = create_saga(2, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -63,7 +60,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "saga_exists?/1" do
-    test "returns a saga if it exists", context do
+    test "returns a saga if it exists" do
       saga = create_saga(22, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -76,7 +73,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "mark_as_completed/1" do
-    test "marks a saga as completed", context do
+    test "marks a saga as completed" do
       saga = create_saga(3, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -87,7 +84,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       assert result == updated_saga
     end
 
-    test "marks a saga as completed during high concurrency", context do
+    test "marks a saga as completed during high concurrency" do
       saga = create_saga(33, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -108,7 +105,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "complete_saga/1" do
-    test "completes (deletes) a saga", context do
+    test "completes (deletes) a saga" do
       saga = create_saga(4, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -142,21 +139,41 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
   end
 
   describe "assign_state/2" do
-    test "assigns a state to a saga", context do
-      saga = create_saga(5, "example_saga")
+    test "assigns a state to a saga" do
+      saga = create_saga(53, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
       new_state = %{step: "completed"}
       {:ok, updated_saga} = StorageAdapter.assign_state(saga, new_state)
       assert updated_saga.states == new_state
 
-      {:ok, result} = Redix.command(context[:conn], ["GET", saga.unique_identifier])
-      assert :erlang.binary_to_term(result) == updated_saga
+      {:ok, result} = StorageAdapter.get_saga(saga.unique_identifier)
+      assert result == updated_saga
+    end
+
+    test "assigns a state to a saga during high concurrency" do
+      saga = create_saga(663, "example_saga")
+      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      new_state = %{step: "completed"}
+
+      result_list =
+        Task.async_stream(
+          1..50,
+          fn _index ->
+            {:ok, result} = StorageAdapter.assign_state(saga, new_state)
+            result
+          end,
+          max_concurrency: 50
+        )
+        |> Enum.map(fn {_response_code, result} -> result end)
+
+      {:ok, updated_saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
     end
   end
 
   describe "assign_context/2" do
-    test "assigns a context to a saga", context do
+    test "assigns a context to a saga" do
       saga = create_saga(7, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
@@ -164,8 +181,28 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       {:ok, updated_saga} = StorageAdapter.assign_context(saga, new_context)
       assert updated_saga.context == new_context
 
-      {:ok, result} = Redix.command(context[:conn], ["GET", saga.unique_identifier])
-      assert :erlang.binary_to_term(result) == updated_saga
+      {:ok, result} = StorageAdapter.get_saga(saga.unique_identifier)
+      assert result == updated_saga
+    end
+
+    test "assigns a context to a saga during high concurrency" do
+      saga = create_saga(77, "example_saga")
+      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      new_context = %{user: "tester"}
+
+      result_list =
+        Task.async_stream(
+          1..50,
+          fn _index ->
+            {:ok, result} = StorageAdapter.assign_context(saga, new_context)
+            result
+          end,
+          max_concurrency: 50
+        )
+        |> Enum.map(fn {_response_code, result} -> result end)
+
+      {:ok, updated_saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
     end
   end
 end

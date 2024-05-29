@@ -1,5 +1,5 @@
 defmodule SagaWeaver.Adapters.RedisAdapterTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   alias SagaWeaver.Adapters.RedisAdapter
   alias SagaWeaver.SagaSchema
 
@@ -37,7 +37,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
   end
 
   describe "get_saga/1" do
-    test "returns a saga if it exists", context do
+    test "returns a saga if it exists" do
       saga = create_saga(2, "example_saga")
       {:ok, _} = RedisAdapter.initialize_saga(saga)
 
