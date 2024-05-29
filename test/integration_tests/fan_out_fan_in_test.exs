@@ -27,7 +27,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
 
     def identity_key_mapping do
       %{
-        FanOutMessage => fn message -> %{id: message.id} end,
+        FanOutMessage => fn message -> %{id: message.id, name: "test"} end,
         FanInMessage => fn message -> %{id: message.fanout_id} end
       }
     end

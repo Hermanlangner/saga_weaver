@@ -23,12 +23,37 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def initialize_saga(%SagaSchema{} = saga) do
-    execute_with_optimistic_lock(saga.unique_identifier, fn ->
-      [["SET", saga.unique_identifier, encode_entity(saga)]]
+    conn = connection()
+
+    retry_until_ok(fn ->
+      retry_initialize_saga(conn, saga)
     end)
-    |> case do
-      :ok -> {:ok, saga}
-      error -> error
+  end
+
+  def retry_initialize_saga(conn, new_saga) do
+    apply_watch(conn, new_saga.unique_identifier)
+
+    case get_saga(new_saga.unique_identifier) do
+      nil ->
+        transaction_result =
+          execute_transaction(conn, [["SET", new_saga.unique_identifier, encode_entity(new_saga)]])
+
+        case transaction_result do
+          :ok -> get_saga(new_saga.unique_identifier)
+          {:error, :transaction_failed} -> :error
+        end
+
+      {:ok, saga} ->
+        unwatch(conn)
+        {:ok, saga}
+    end
+  end
+
+  def saga_exists?(unique_identifier) do
+    case key_exists?(unique_identifier) do
+      {:ok, 1} -> true
+      {:ok, 0} -> false
+      error -> handle_error(error)
     end
   end
 
@@ -100,6 +125,12 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   # Redis operations
 
+  defp key_exists?(key) do
+    connection()
+    |> Redix.command(["EXISTS", key])
+    |> handle_response()
+  end
+
   defp fetch_record(key) do
     connection()
     |> Redix.command(["GET", key])
@@ -119,6 +150,10 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     Redix.command(conn, ["WATCH", key])
   end
 
+  defp unwatch(conn) do
+    Redix.command(conn, ["UNWATCH"])
+  end
+
   defp execute_transaction(conn, commands) do
     case Redix.pipeline(conn, [["MULTI"] | commands ++ [["EXEC"]]]) do
       {:ok, ["OK", "QUEUED", nil]} ->
@@ -134,8 +169,8 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   defp retry_until_ok(fun, delay \\ 0) do
     case fun.() do
-      {:ok, _} ->
-        :ok
+      {:ok, result} ->
+        {:ok, result}
 
       :error ->
         Process.sleep(delay)

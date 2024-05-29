@@ -17,7 +17,11 @@ defmodule SagaWeaver.ConsumerSupervisor do
       }
     ]
 
-    opts = [strategy: :one_for_one, subscribe_to: [{SagaWeaver.Producer, max_demand: 50}]]
+    opts = [
+      strategy: :one_for_one,
+      subscribe_to: [{SagaWeaver.Producer, min_demand: 25, max_demand: 50}]
+    ]
+
     ConsumerSupervisor.init(children, opts)
   end
 end

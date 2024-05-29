@@ -3,6 +3,7 @@ defmodule SagaWeaver.Adapters.StorageAdapter do
   alias SagaWeaver.SagaSchema
 
   @callback initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()} | {:error, any()}
+  @callback saga_exists?(any()) :: boolean
   @callback get_saga(any()) :: {:ok, SagaSchema.t()} | nil
   @callback mark_as_completed(SagaSchema.t()) :: {:ok, SagaSchema.t()} | {:error, any()}
   @callback complete_saga(SagaSchema.t()) :: :ok | {:error, any()}
@@ -11,6 +12,9 @@ defmodule SagaWeaver.Adapters.StorageAdapter do
 
   @spec initialize_saga(any()) :: {:error, any()} | {:ok, SagaWeaver.SagaSchema.t()}
   def initialize_saga(saga_schema), do: impl().initialize_saga(saga_schema)
+
+  @spec saga_exists?(any()) :: boolean
+  def saga_exists?(key), do: impl().saga_exists?(key)
 
   @spec get_saga(any()) :: nil | {:error, any()} | {:ok, any()}
   def get_saga(key), do: impl().get_saga(key)
