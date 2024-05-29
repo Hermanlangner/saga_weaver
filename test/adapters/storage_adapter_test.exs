@@ -64,7 +64,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
   describe "saga_exists?/1" do
     test "returns a saga if it exists", context do
-      saga = create_saga(2, "example_saga")
+      saga = create_saga(22, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
       assert true == StorageAdapter.saga_exists?(saga.unique_identifier)
@@ -118,7 +118,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
     end
 
     test "completes (deletes) a saga during high concurrency", context do
-      saga = create_saga(4, "example_saga")
+      saga = create_saga(44, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
       assert :ok = StorageAdapter.complete_saga(saga)

@@ -8,7 +8,7 @@ defmodule SagaWeaver.Orchestrator do
     {:ok, instance_case} =
       case retrieve_saga(saga, message) do
         nil -> start_saga(saga, message)
-        instance -> instance
+        {:ok, instance} -> {:ok, instance}
       end
 
     {:ok, updated_entity} = saga.handle_message(instance_case, message)
