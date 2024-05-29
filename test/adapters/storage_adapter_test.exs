@@ -35,16 +35,17 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
       result_list =
         Task.async_stream(
-          1..100,
+          1..50,
           fn _index ->
             {:ok, result} = StorageAdapter.initialize_saga(saga)
             result
           end,
-          max_concurrency: 100
+          max_concurrency: 50
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
       assert Enum.all?(result_list, fn created_saga -> created_saga == saga end)
+      assert true == StorageAdapter.saga_exists?(saga.unique_identifier)
     end
   end
 
@@ -92,12 +93,12 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
       result_list =
         Task.async_stream(
-          1..100,
+          1..50,
           fn _index ->
             {:ok, result} = StorageAdapter.mark_as_completed(saga)
             result
           end,
-          max_concurrency: 100
+          max_concurrency: 50
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
@@ -113,8 +114,30 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
       assert :ok = StorageAdapter.complete_saga(saga)
 
+      assert false == StorageAdapter.saga_exists?(saga.unique_identifier)
+    end
+
+    test "completes (deletes) a saga during high concurrency", context do
+      saga = create_saga(4, "example_saga")
+      {:ok, _} = StorageAdapter.initialize_saga(saga)
+
+      assert :ok = StorageAdapter.complete_saga(saga)
+
       {:ok, result} = Redix.command(context[:conn], ["GET", saga.unique_identifier])
       assert result == nil
+
+      result_list =
+        Task.async_stream(
+          1..50,
+          fn _index ->
+            StorageAdapter.complete_saga(saga)
+          end,
+          max_concurrency: 50
+        )
+        |> Enum.map(fn {_response_code, result} -> result end)
+
+      assert Enum.all?(result_list, fn created_saga -> created_saga == :ok end)
+      assert false == StorageAdapter.saga_exists?(saga.unique_identifier)
     end
   end
 

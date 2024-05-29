@@ -3,25 +3,6 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   alias SagaWeaver.SagaSchema
   alias Redix
 
-  # Optimistic locking function
-  defp execute_with_optimistic_lock(key, fun) do
-    with conn <- connection(),
-         {:ok, _} <- Redix.command(conn, ["WATCH", key]) do
-      result = fun.()
-
-      case Redix.pipeline(conn, [["MULTI"] | result ++ [["EXEC"]]]) do
-        {:ok, ["OK", "QUEUED", _]} ->
-          :ok
-
-        error ->
-          handle_error(error)
-      end
-    else
-      error ->
-        handle_error(error)
-    end
-  end
-
   def initialize_saga(%SagaSchema{} = saga) do
     conn = connection()
 
@@ -66,25 +47,56 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def mark_as_completed(%SagaSchema{} = saga) do
-    updated_saga = %SagaSchema{saga | marked_as_completed: true}
+    conn = connection()
 
-    execute_with_optimistic_lock(saga.unique_identifier, fn ->
-      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    retry_until_ok(fn ->
+      retry_mark_as_completed(conn, saga.unique_identifier)
     end)
-    |> case do
-      :ok ->
-        {:ok, updated_saga}
 
-      error ->
-        IO.inspect(error)
-        {:error, error}
+    get_saga(saga.unique_identifier)
+  end
+
+  defp retry_mark_as_completed(conn, unique_identifier) do
+    apply_watch(conn, unique_identifier)
+    {:ok, saga} = get_saga(unique_identifier)
+    saga = %SagaSchema{saga | marked_as_completed: true}
+
+    transaction_result =
+      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+
+    case transaction_result do
+      :ok -> {:ok, saga}
+      {:error, :transaction_failed} -> :error
     end
   end
 
   def complete_saga(%SagaSchema{} = saga) do
-    execute_with_optimistic_lock(saga.unique_identifier, fn ->
-      [["DEL", saga.unique_identifier]]
+    conn = connection()
+
+    retry_until_ok(fn ->
+      retry_complete_saga(conn, saga)
     end)
+
+    :ok
+  end
+
+  def retry_complete_saga(conn, new_saga) do
+    apply_watch(conn, new_saga.unique_identifier)
+
+    case get_saga(new_saga.unique_identifier) do
+      nil ->
+        unwatch(conn)
+        {:ok, nil}
+
+      {:ok, saga} ->
+        transaction_result =
+          execute_transaction(conn, [["DEL", saga.unique_identifier]])
+
+        case transaction_result do
+          :ok -> {:ok, nil}
+          {:error, :transaction_failed} -> :error
+        end
+    end
   end
 
   def assign_state(%SagaSchema{} = saga, state) do
@@ -112,14 +124,26 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def assign_context(%SagaSchema{} = saga, context) do
-    updated_saga = %SagaSchema{saga | context: context}
+    conn = connection()
 
-    execute_with_optimistic_lock(saga.unique_identifier, fn ->
-      [["SET", saga.unique_identifier, encode_entity(updated_saga)]]
+    retry_until_ok(fn ->
+      retry_assign_context(conn, saga.unique_identifier, context)
     end)
-    |> case do
-      :ok -> {:ok, updated_saga}
-      error -> error
+
+    get_saga(saga.unique_identifier)
+  end
+
+  defp retry_assign_context(conn, unique_identifier, context) do
+    apply_watch(conn, unique_identifier)
+    {:ok, saga} = get_saga(unique_identifier)
+    saga = %SagaSchema{saga | context: Map.merge(saga.context, context)}
+
+    transaction_result =
+      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+
+    case transaction_result do
+      :ok -> {:ok, saga}
+      {:error, :transaction_failed} -> :error
     end
   end
 
