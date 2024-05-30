@@ -1,10 +1,10 @@
 defmodule SagaWeaver.OrchestratorTest do
   use ExUnit.Case, async: true
 
+  alias SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.Identifiers
   alias SagaWeaver.Orchestrator
   alias SagaWeaver.SagaSchema
-  alias SagaWeaver.Adapters.RedisAdapter
 
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
@@ -62,7 +62,7 @@ defmodule SagaWeaver.OrchestratorTest do
       assert result.marked_as_completed
     end
 
-    test "retrieves and handles an existing saga", context do
+    test "retrieves and handles an existing saga" do
       message = %TestMessage{id: 2, name: "test"}
       saga = TestSaga
 
@@ -81,12 +81,12 @@ defmodule SagaWeaver.OrchestratorTest do
         marked_as_completed: false
       }
 
-      RedisAdapter.initialize_saga(initial_saga)
+      StorageAdapter.initialize_saga(initial_saga)
       assert {:ok, _entity} = Orchestrator.execute_saga(saga, message)
 
-      {:ok, result} = Redix.command(context[:conn], ["GET", unique_identifier])
+      {:ok, result} = StorageAdapter.get_saga(unique_identifier)
 
-      assert result == nil
+      assert result == :not_found
     end
   end
 
@@ -121,7 +121,7 @@ defmodule SagaWeaver.OrchestratorTest do
   end
 
   describe "initialize_saga/2" do
-    test "initializes a new saga", context do
+    test "initializes a new saga" do
       message = %TestMessage{id: 5, name: "test"}
       saga = TestSaga
 
@@ -134,8 +134,8 @@ defmodule SagaWeaver.OrchestratorTest do
 
       Orchestrator.initialize_saga(saga, message)
 
-      {:ok, result} = Redix.command(context[:conn], ["GET", unique_identifier])
-      saga = :erlang.binary_to_term(result)
+      {:ok, saga} = StorageAdapter.get_saga(unique_identifier)
+
       assert saga.unique_identifier == unique_identifier
       assert saga.saga_name == "test_saga"
       assert saga.marked_as_completed == false
@@ -162,7 +162,7 @@ defmodule SagaWeaver.OrchestratorTest do
         marked_as_completed: false
       }
 
-      RedisAdapter.initialize_saga(initial_saga)
+      StorageAdapter.initialize_saga(initial_saga)
       assert {:ok, ^initial_saga} = Orchestrator.retrieve_saga(saga, message)
     end
 

@@ -7,7 +7,6 @@ defmodule SagaWeaver do
   @impl Supervisor
   def init(_args) do
     children = [
-      {Redix, []},
       {Producer, []},
       {ConsumerSupervisor, []}
     ]

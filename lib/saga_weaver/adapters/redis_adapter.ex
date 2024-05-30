@@ -1,6 +1,7 @@
 defmodule SagaWeaver.Adapters.RedisAdapter do
   @behaviour SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.SagaSchema
+  alias SagaWeaver.Config
   alias Redix
 
   def initialize_saga(%SagaSchema{} = saga) do
@@ -17,7 +18,9 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     case get_saga(new_saga.unique_identifier) do
       {:ok, :not_found} ->
         transaction_result =
-          execute_transaction(conn, [["SET", new_saga.unique_identifier, encode_entity(new_saga)]])
+          execute_transaction(conn, [
+            ["SET", namespaced_key(new_saga.unique_identifier), encode_entity(new_saga)]
+          ])
 
         case transaction_result do
           :ok -> get_saga(new_saga.unique_identifier)
@@ -65,7 +68,9 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     saga = %SagaSchema{saga | marked_as_completed: true}
 
     transaction_result =
-      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+      execute_transaction(conn, [
+        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+      ])
 
     case transaction_result do
       :ok -> {:ok, saga}
@@ -93,7 +98,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
       {:ok, saga} ->
         transaction_result =
-          execute_transaction(conn, [["DEL", saga.unique_identifier]])
+          execute_transaction(conn, [["DEL", namespaced_key(saga.unique_identifier)]])
 
         case transaction_result do
           :ok -> {:ok, nil}
@@ -118,11 +123,16 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     saga = %SagaSchema{saga | states: Map.merge(saga.states, state)}
 
     transaction_result =
-      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+      execute_transaction(conn, [
+        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+      ])
 
     case transaction_result do
-      :ok -> {:ok, saga}
-      {:error, :transaction_failed} -> :error
+      :ok ->
+        {:ok, saga}
+
+      {:error, :transaction_failed} ->
+        :error
     end
   end
 
@@ -142,7 +152,9 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     saga = %SagaSchema{saga | context: Map.merge(saga.context, context)}
 
     transaction_result =
-      execute_transaction(conn, [["SET", saga.unique_identifier, encode_entity(saga)]])
+      execute_transaction(conn, [
+        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+      ])
 
     case transaction_result do
       :ok -> {:ok, saga}
@@ -154,27 +166,31 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   defp key_exists?(key) do
     connection()
-    |> Redix.command(["EXISTS", key])
+    |> Redix.command(["EXISTS", namespaced_key(key)])
     |> handle_response()
   end
 
   defp fetch_record(key) do
     connection()
-    |> Redix.command(["GET", key])
+    |> Redix.command(["GET", namespaced_key(key)])
     |> handle_response()
   end
 
   # Helper functions
 
+  defp namespaced_key(key) do
+    "#{Config.namespace()}:#{key}"
+  end
+
   defp connection() do
-    case Redix.start_link("redis://localhost:6379") do
+    case Redix.start_link("redis://#{Config.host()}:#{Config.port()}") do
       {:ok, conn} -> conn
       error -> handle_error(error)
     end
   end
 
   defp apply_watch(conn, key) do
-    Redix.command(conn, ["WATCH", key])
+    Redix.command(conn, ["WATCH", namespaced_key(key)])
   end
 
   defp unwatch(conn) do

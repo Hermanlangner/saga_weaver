@@ -148,6 +148,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       assert result == updated_saga
     end
 
+    # This is actually a bad test, need to simulate fan in and fan out test
     test "assigns a state to a saga during high concurrency" do
       saga = create_saga(663, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
