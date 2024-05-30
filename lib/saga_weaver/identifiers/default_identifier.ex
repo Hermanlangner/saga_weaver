@@ -8,6 +8,7 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifier do
   alias SagaWeaver.Identifiers.SagaIdentifier
 
   @impl SagaIdentifier
+  @spec unique_saga_id(map(), atom(), map()) :: String.t()
   def unique_saga_id(message, entity_name, unique_saga_id_mapping) do
     hashed_saga_ids =
       get_mapped_saga_ids(message, unique_saga_id_mapping)
@@ -22,11 +23,13 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifier do
     unique_id
   end
 
+  @impl SagaIdentifier
+  @spec get_mapped_saga_ids(map(), map()) :: map()
   def get_mapped_saga_ids(message, unique_saga_id_mapping) do
     unique_saga_id_mapping[message.__struct__].(message)
   end
 
-  def ids_to_sha(saga_ids) do
+  defp ids_to_sha(saga_ids) do
     saga_ids
     |> Enum.reduce("", fn {key, value}, acc ->
       acc <> "#{to_string(key)}:#{to_string(value)},"
