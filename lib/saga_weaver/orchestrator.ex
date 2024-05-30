@@ -3,11 +3,11 @@ defmodule SagaWeaver.Orchestrator do
   alias SagaWeaver.Identifiers.SagaIdentifier
   alias SagaWeaver.Adapters.StorageAdapter
 
-  @spec execute_saga(any(), any()) :: any()
+  @spec execute_saga(atom(), map()) :: any()
   def execute_saga(saga, message) do
     {:ok, instance_case} =
       case retrieve_saga(saga, message) do
-        nil -> start_saga(saga, message)
+        {:ok, :not_found} -> start_saga(saga, message)
         {:ok, instance} -> {:ok, instance}
       end
 
@@ -27,7 +27,8 @@ defmodule SagaWeaver.Orchestrator do
       saga
       |> initialize_saga(message)
     else
-      {:error, "Message not supported"}
+      {:ok,
+       "No active Sagas were found for this message, this message also does not start a new Saga."}
     end
   end
 

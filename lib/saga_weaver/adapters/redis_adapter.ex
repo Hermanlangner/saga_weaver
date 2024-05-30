@@ -15,7 +15,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     apply_watch(conn, new_saga.unique_identifier)
 
     case get_saga(new_saga.unique_identifier) do
-      nil ->
+      {:ok, :not_found} ->
         transaction_result =
           execute_transaction(conn, [["SET", new_saga.unique_identifier, encode_entity(new_saga)]])
 
@@ -32,15 +32,18 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   def saga_exists?(unique_identifier) do
     case key_exists?(unique_identifier) do
-      {:ok, 1} -> true
-      {:ok, 0} -> false
-      error -> handle_error(error)
+      {:ok, 1} ->
+        true
+
+      {:ok, 0} ->
+        false
+        # error -> handle_error(error)
     end
   end
 
   def get_saga(key) do
     case fetch_record(key) do
-      {:ok, nil} -> nil
+      {:ok, nil} -> {:ok, :not_found}
       {:ok, saga} -> {:ok, decode_entity(saga)}
       {:error, _} = error -> error
     end
@@ -84,9 +87,9 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     apply_watch(conn, new_saga.unique_identifier)
 
     case get_saga(new_saga.unique_identifier) do
-      nil ->
+      {:ok, :not_found} ->
         unwatch(conn)
-        {:ok, nil}
+        {:ok, :not_found}
 
       {:ok, saga} ->
         transaction_result =

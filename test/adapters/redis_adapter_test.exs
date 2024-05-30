@@ -44,8 +44,8 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert {:ok, ^saga} = RedisAdapter.get_saga(saga.unique_identifier)
     end
 
-    test "returns nil if saga does not exist", _context do
-      assert nil == RedisAdapter.get_saga("nonexistent_saga")
+    test "returns not found if saga does not exist", _context do
+      assert {:ok, :not_found} == RedisAdapter.get_saga("nonexistent_saga")
     end
   end
 

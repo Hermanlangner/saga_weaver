@@ -61,7 +61,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
   end
 
   setup _context do
-    start_supervised(SagaWeaver)
+    start_link_supervised!(SagaWeaver)
 
     :ok
   end
@@ -81,7 +81,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
 
     fan_out_saga = SagaWeaver.retrieve_saga(FanOutSaga, fan_out_message)
 
-    assert fan_out_saga == nil
+    assert fan_out_saga == {:ok, :not_found}
   end
 
   test "Asynchronous Fan out and Fan in completes saga" do
@@ -104,6 +104,6 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
 
     fan_out_saga = SagaWeaver.retrieve_saga(FanOutSaga, fan_out_message)
 
-    assert fan_out_saga == nil
+    assert fan_out_saga == {:ok, :not_found}
   end
 end

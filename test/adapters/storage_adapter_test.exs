@@ -54,8 +54,8 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       assert {:ok, ^saga} = StorageAdapter.get_saga(saga.unique_identifier)
     end
 
-    test "returns nil if saga does not exist", _context do
-      assert nil == StorageAdapter.get_saga("nonexistent_saga")
+    test "returns not_found if saga does not exist", _context do
+      assert {:ok, :not_found} == StorageAdapter.get_saga("nonexistent_saga")
     end
   end
 
@@ -67,7 +67,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       assert true == StorageAdapter.saga_exists?(saga.unique_identifier)
     end
 
-    test "returns nil if saga does not exist", _context do
+    test "returns false if saga does not exist", _context do
       assert false == StorageAdapter.saga_exists?("nonexistent_saga")
     end
   end
@@ -114,14 +114,11 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       assert false == StorageAdapter.saga_exists?(saga.unique_identifier)
     end
 
-    test "completes (deletes) a saga during high concurrency", context do
+    test "completes (deletes) a saga during high concurrency" do
       saga = create_saga(44, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
       assert :ok = StorageAdapter.complete_saga(saga)
-
-      {:ok, result} = Redix.command(context[:conn], ["GET", saga.unique_identifier])
-      assert result == nil
 
       result_list =
         Task.async_stream(

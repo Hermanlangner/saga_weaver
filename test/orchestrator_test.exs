@@ -114,7 +114,9 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %UnsupportedMessage{id: 4, name: "test"}
       saga = TestSaga
 
-      assert {:error, "Message not supported"} = Orchestrator.start_saga(saga, message)
+      assert {:ok,
+              "No active Sagas were found for this message, this message also does not start a new Saga."} =
+               Orchestrator.start_saga(saga, message)
     end
   end
 
@@ -168,7 +170,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 7, name: "test"}
       saga = TestSaga
 
-      assert nil == Orchestrator.retrieve_saga(saga, message)
+      assert {:ok, :not_found} == Orchestrator.retrieve_saga(saga, message)
     end
   end
 end
