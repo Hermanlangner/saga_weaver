@@ -1,4 +1,5 @@
 defmodule SagaWeaver.SagaSchema do
+  @moduledoc false
   defstruct [:unique_identifier, :saga_name, :states, :context, :marked_as_completed]
 
   alias SagaWeaver.Adapters.StorageAdapter

@@ -1,4 +1,5 @@
 defmodule SagaWeaver.Test.TestMessage do
+  @moduledoc false
   defstruct [:id, :uuid, :atom_key]
 
   @type t :: %__MODULE__{id: integer(), uuid: String.t(), atom_key: atom()}

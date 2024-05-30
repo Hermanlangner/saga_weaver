@@ -1,8 +1,9 @@
 defmodule SagaWeaver.Adapters.RedisAdapter do
+  @moduledoc false
   @behaviour SagaWeaver.Adapters.StorageAdapter
-  alias SagaWeaver.SagaSchema
-  alias SagaWeaver.Config
   alias Redix
+  alias SagaWeaver.Config
+  alias SagaWeaver.SagaSchema
 
   def initialize_saga(%SagaSchema{} = saga) do
     conn = connection()
@@ -182,7 +183,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     "#{Config.namespace()}:#{key}"
   end
 
-  defp connection() do
+  defp connection do
     case Redix.start_link("redis://#{Config.host()}:#{Config.port()}") do
       {:ok, conn} -> conn
       error -> handle_error(error)

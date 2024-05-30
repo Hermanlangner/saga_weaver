@@ -1,4 +1,5 @@
 defmodule SagaWeaver.ConsumerSupervisor do
+  @moduledoc false
   use ConsumerSupervisor
 
   def start_link(arg) do

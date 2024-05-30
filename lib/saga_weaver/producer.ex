@@ -1,4 +1,5 @@
 defmodule SagaWeaver.Producer do
+  @moduledoc false
   use GenStage
 
   def start_link(_) do

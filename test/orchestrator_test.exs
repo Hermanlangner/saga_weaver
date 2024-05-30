@@ -21,9 +21,9 @@ defmodule SagaWeaver.OrchestratorTest do
 
   defmodule TestSaga do
     alias SagaWeaver.OrchestratorTest.TestMessage
-    def entity_name(), do: "test_saga"
-    def started_by(), do: [TestMessage]
-    def identity_key_mapping(), do: %{TestMessage => &%{id: &1.id}}
+    def entity_name, do: "test_saga"
+    def started_by, do: [TestMessage]
+    def identity_key_mapping, do: %{TestMessage => &%{id: &1.id}}
 
     def handle_message(%SagaSchema{} = saga, _message) do
       updated_saga = %SagaSchema{saga | marked_as_completed: true}

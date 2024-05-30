@@ -1,8 +1,10 @@
 defmodule SagaWeaver do
+  @moduledoc false
   use Supervisor
 
-  alias SagaWeaver.Producer
   alias SagaWeaver.ConsumerSupervisor
+  alias SagaWeaver.Orchestrator
+  alias SagaWeaver.Producer
 
   @impl Supervisor
   def init(_args) do
@@ -24,13 +26,6 @@ defmodule SagaWeaver do
   end
 
   def retrieve_saga(saga, message) do
-    unique_saga_id =
-      SagaWeaver.Identifiers.DefaultIdentifier.unique_saga_id(
-        message,
-        saga.entity_name(),
-        saga.identity_key_mapping()
-      )
-
-    SagaWeaver.Adapters.StorageAdapter.get_saga(unique_saga_id)
+    Orchestrator.retrieve_saga(saga, message)
   end
 end

@@ -1,4 +1,5 @@
 defmodule SagaWeaver.Test.TestMessageFinal do
+  @moduledoc false
   defstruct [:external_id, :external_uuid, :external_atom_key]
 
   @type t :: %__MODULE__{

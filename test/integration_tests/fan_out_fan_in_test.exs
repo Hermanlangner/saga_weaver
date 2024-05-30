@@ -1,7 +1,7 @@
 defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
   use ExUnit.Case
-  alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
   alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanInMessage
+  alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
 
   defmodule FanOutMessage do
     defstruct [:id, :name]
@@ -12,8 +12,8 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
   end
 
   defmodule FanOutSaga do
-    alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
     alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanInMessage
+    alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
 
     alias SagaWeaver.SagaSchema
 

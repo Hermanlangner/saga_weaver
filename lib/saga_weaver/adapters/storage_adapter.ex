@@ -1,4 +1,5 @@
 defmodule SagaWeaver.Adapters.StorageAdapter do
+  @moduledoc false
   alias SagaWeaver.Adapters.RedisAdapter
   alias SagaWeaver.SagaSchema
 

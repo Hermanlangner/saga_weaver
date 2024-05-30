@@ -5,7 +5,7 @@ defmodule SagaWeaver.Config do
     saga_identifier: SagaWeaver.Identifiers.DefaultIdentifier,
     storage_adapter: SagaWeaver.Adapters.RedisAdapter,
     host: "localhostFail",
-    port: 63791,
+    port: 63_791,
     namespace: "saga_weaver"
   }
 

@@ -1,7 +1,8 @@
 defmodule SagaWeaver.Orchestrator do
-  alias SagaWeaver.SagaSchema
-  alias SagaWeaver.Identifiers.SagaIdentifier
+  @moduledoc false
   alias SagaWeaver.Adapters.StorageAdapter
+  alias SagaWeaver.Identifiers.SagaIdentifier
+  alias SagaWeaver.SagaSchema
 
   @spec execute_saga(atom(), map()) :: {:ok, SagaSchema.t()}
   def execute_saga(saga, message) do

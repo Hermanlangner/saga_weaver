@@ -1,4 +1,5 @@
 defmodule SagaWeaver.Consumer do
+  @moduledoc false
   use GenStage
 
   alias SagaWeaver.Orchestrator
