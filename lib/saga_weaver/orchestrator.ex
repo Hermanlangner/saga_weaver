@@ -3,7 +3,7 @@ defmodule SagaWeaver.Orchestrator do
   alias SagaWeaver.Identifiers.SagaIdentifier
   alias SagaWeaver.Adapters.StorageAdapter
 
-  @spec execute_saga(atom(), map()) :: any()
+  @spec execute_saga(atom(), map()) :: {:ok, SagaSchema.t()}
   def execute_saga(saga, message) do
     {:ok, instance_case} =
       case retrieve_saga(saga, message) do
@@ -21,7 +21,7 @@ defmodule SagaWeaver.Orchestrator do
     end
   end
 
-  @spec start_saga(any(), any()) :: any()
+  @spec start_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found} | {:ok, String.t()}
   def start_saga(saga, message) do
     if message.__struct__ in saga.started_by() do
       saga
@@ -32,7 +32,7 @@ defmodule SagaWeaver.Orchestrator do
     end
   end
 
-  @spec initialize_saga(any(), any()) :: any()
+  @spec initialize_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
   def initialize_saga(saga, message) do
     unique_saga_id =
       SagaIdentifier.unique_saga_id(
@@ -52,7 +52,7 @@ defmodule SagaWeaver.Orchestrator do
     StorageAdapter.initialize_saga(initial_state)
   end
 
-  @spec retrieve_saga(any(), any()) :: any()
+  @spec retrieve_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
   def retrieve_saga(saga, message) do
     SagaIdentifier.unique_saga_id(
       message,
