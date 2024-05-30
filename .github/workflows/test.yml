@@ -35,7 +35,6 @@ jobs:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REDIS_HOST: localhost
-      # The default Redis port
       REDIS_PORT: 6379
     steps:
       - name: Setup Elixir
@@ -72,7 +71,7 @@ jobs:
 
       - run: mix credo --strict
 
-    #  - run: mix dialyzer
+      - run: mix dialyzer
 
       - name: Check for abandonded packages
         run: mix hex.audit

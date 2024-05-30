@@ -22,8 +22,12 @@ defmodule SagaWeaver.SagaSchema do
   end
 
   def assign_context(instance, key, value) do
+    assign_context(instance, %{key => value})
+  end
+
+  def assign_context(instance, context_map) do
     {:ok, instance} =
-      StorageAdapter.assign_context(instance, Map.put(instance.context, key, value))
+      StorageAdapter.assign_context(instance, context_map)
 
     instance
   end
