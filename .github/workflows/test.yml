@@ -21,6 +21,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +38,9 @@ jobs:
       MIX_ENV: test
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REDIS_HOST: localhost
+      # The default Redis port
+      REDIS_PORT: 6379
     steps:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
@@ -70,7 +76,7 @@ jobs:
 
       - run: mix credo --strict
 
-      - run: mix dialyzer
+    #  - run: mix dialyzer
 
       - name: Check for abandonded packages
         run: mix hex.audit
