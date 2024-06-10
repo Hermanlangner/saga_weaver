@@ -12,25 +12,17 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
   end
 
   defmodule FanOutSaga do
+    use SagaWeaver.Saga,
+      started_by: [FanOutMessage],
+      identity_key_mapping: %{
+        FanOutMessage => fn message -> %{id: message.id} end,
+        FanInMessage => fn message -> %{id: message.fanout_id} end
+      }
+
     alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanInMessage
     alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
 
     alias SagaWeaver.SagaSchema
-
-    def started_by do
-      [FanOutMessage]
-    end
-
-    def entity_name do
-      __MODULE__
-    end
-
-    def identity_key_mapping do
-      %{
-        FanOutMessage => fn message -> %{id: message.id} end,
-        FanInMessage => fn message -> %{id: message.fanout_id} end
-      }
-    end
 
     def handle_message(%SagaSchema{} = instance, %FanOutMessage{} = _message) do
       fan_in_ids =
@@ -41,14 +33,14 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
 
       {:ok,
        instance
-       |> SagaSchema.assign_state(fan_in_ids)}
+       |> assign_state(fan_in_ids)}
     end
 
     def handle_message(%SagaSchema{} = instance, %FanInMessage{} = message) do
-      instance = instance |> SagaSchema.assign_state(message.id, true)
+      instance = instance |> assign_state(message.id, true)
 
       if ready_to_complete?(instance) do
-        {:ok, instance |> SagaSchema.mark_as_completed()}
+        {:ok, instance |> mark_as_completed()}
       else
         {:ok, instance}
       end

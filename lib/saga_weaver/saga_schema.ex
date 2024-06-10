@@ -2,8 +2,6 @@ defmodule SagaWeaver.SagaSchema do
   @moduledoc false
   defstruct [:unique_identifier, :saga_name, :states, :context, :marked_as_completed]
 
-  alias SagaWeaver.Adapters.StorageAdapter
-
   @type t :: %__MODULE__{
           unique_identifier: String.t(),
           saga_name: atom(),
@@ -11,31 +9,6 @@ defmodule SagaWeaver.SagaSchema do
           context: map(),
           marked_as_completed: boolean()
         }
-
-  def assign_state(instance, key, value) do
-    assign_state(instance, %{key => value})
-  end
-
-  def assign_state(instance, state_map) do
-    {:ok, instance} = StorageAdapter.assign_state(instance, state_map)
-    instance
-  end
-
-  def assign_context(instance, key, value) do
-    assign_context(instance, %{key => value})
-  end
-
-  def assign_context(instance, context_map) do
-    {:ok, instance} =
-      StorageAdapter.assign_context(instance, context_map)
-
-    instance
-  end
-
-  def mark_as_completed(instance) do
-    {:ok, instance} = StorageAdapter.mark_as_completed(instance)
-    instance
-  end
 end
 
 # defmodule SagaWeaver.SagaSchema do
