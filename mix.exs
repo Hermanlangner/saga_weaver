@@ -72,7 +72,7 @@ defmodule SagaWeaver.MixProject do
       {:elixir_uuid, "~>1.2", only: [:dev, :test]},
       {:jason, "~> 1.2"},
       {:redix, "~> 1.5"},
-      {:gen_stage, "~> 1.2.1"}
+      {:ecto, "~> 3.12"}
     ]
   end
 end
