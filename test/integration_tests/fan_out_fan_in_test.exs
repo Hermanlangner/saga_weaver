@@ -52,26 +52,20 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
     end
   end
 
-  setup _context do
-    start_link_supervised!(SagaWeaver)
-
-    :ok
-  end
-
   test "Synchronous Fan out and Fan in completes saga" do
     fan_out_message = %FanOutMessage{id: 1, name: "test"}
 
-    {:ok, _fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
+    {:ok, _fan_out_saga} = SagaWeaver.Orchestrator.execute_saga(FanOutSaga, fan_out_message)
 
     fan_in_messages =
       1..100
       |> Enum.map(fn id -> %FanInMessage{id: id, fanout_id: 1} end)
 
     Enum.each(fan_in_messages, fn message ->
-      {:ok, _fan_in_saga} = SagaWeaver.execute_saga(FanOutSaga, message)
+      {:ok, _fan_in_saga} = SagaWeaver.Orchestrator.execute_saga(FanOutSaga, message)
     end)
 
-    fan_out_saga = SagaWeaver.retrieve_saga(FanOutSaga, fan_out_message)
+    fan_out_saga = SagaWeaver.Orchestrator.retrieve_saga(FanOutSaga, fan_out_message)
 
     assert fan_out_saga == {:ok, :not_found}
   end
@@ -83,18 +77,18 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
       1..100
       |> Enum.map(fn id -> %FanInMessage{id: id, fanout_id: 1} end)
 
-    {:ok, _fan_out_saga} = SagaWeaver.execute_saga(FanOutSaga, fan_out_message)
+    {:ok, _fan_out_saga} = SagaWeaver.Orchestrator.execute_saga(FanOutSaga, fan_out_message)
 
     Task.async_stream(
       fan_in_messages,
       fn message ->
-        SagaWeaver.execute_saga(FanOutSaga, message)
+        SagaWeaver.Orchestrator.execute_saga(FanOutSaga, message)
       end,
       max_concurrency: 100
     )
     |> Enum.to_list()
 
-    fan_out_saga = SagaWeaver.retrieve_saga(FanOutSaga, fan_out_message)
+    fan_out_saga = SagaWeaver.Orchestrator.retrieve_saga(FanOutSaga, fan_out_message)
 
     assert fan_out_saga == {:ok, :not_found}
   end
