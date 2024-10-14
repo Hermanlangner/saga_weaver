@@ -5,7 +5,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterPostgresTest do
   alias SagaWeaver.SagaSchema
 
   setup_all do
-    Application.put_env(:saga_weaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
+    Application.put_env(SagaWeaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
     :ok
   end
 

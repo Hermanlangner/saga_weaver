@@ -14,12 +14,4 @@ Application.put_env(:saga_weaver, SagaWeaver,
 
 Application.put_env(:saga_weaver, :repo, SagaWeaver.Test.Repo)
 
-case :gen_tcp.connect(~c"localhost", 6379, []) do
-  {:ok, socket} ->
-    :ok = :gen_tcp.close(socket)
-
-  {:error, reason} ->
-    Mix.raise("Cannot connect to Redis (http://localhost:6379): #{:inet.format_error(reason)}")
-end
-
 Ecto.Adapters.SQL.Sandbox.mode(SagaWeaver.Test.Repo, :manual)

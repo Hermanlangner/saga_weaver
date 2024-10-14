@@ -4,9 +4,9 @@ defmodule SagaWeaver.Config do
   @default_config %{
     saga_identifier: SagaWeaver.Identifiers.DefaultIdentifier,
     storage_adapter: SagaWeaver.Adapters.RedisAdapter,
-    host: "localhostFail",
-    port: 63_791,
-    namespace: "saga_weaver"
+    host: "localhost",
+    port: 6379,
+    namespace: "saga_weaver_test"
   }
 
   def host, do: config_value(:host)
@@ -21,7 +21,7 @@ defmodule SagaWeaver.Config do
   """
   @spec config_value(atom()) :: any()
   def config_value(key) do
-    case Application.get_env(:saga_weaver, key) do
+    case Application.get_env(SagaWeaver, key) do
       nil -> Map.get(@default_config, key)
       value -> value
     end

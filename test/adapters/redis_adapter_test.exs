@@ -5,6 +5,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
 
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
+    Application.put_env(SagaWeaver, :storage_adapter, SagaWeaver.Adapters.RedisAdapter)
     {:ok, conn: conn}
   end
 

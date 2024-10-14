@@ -22,5 +22,15 @@ defmodule SagaWeaver.DataCase do
   def setup_sandbox(tags) do
     pid = Sandbox.start_owner!(SagaWeaver.Test.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
+
+    case :gen_tcp.connect(~c"localhost", 6379, []) do
+      {:ok, socket} ->
+        :ok = :gen_tcp.close(socket)
+
+      {:error, reason} ->
+        Mix.raise(
+          "Cannot connect to Redis (http://localhost:6379): #{:inet.format_error(reason)}"
+        )
+    end
   end
 end
