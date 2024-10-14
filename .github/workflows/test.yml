@@ -46,6 +46,10 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: sagaweaver_test
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
     steps:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
@@ -73,6 +77,9 @@ jobs:
 
       - name: Compile
         run: mix compile --warnings-as-errors
+
+      - name: Run tests test
+        run: mix test
 
       - name: Check for unused packages
         run: mix deps.unlock --check-unused
