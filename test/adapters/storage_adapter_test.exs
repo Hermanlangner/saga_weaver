@@ -18,7 +18,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
   defp create_saga(id, name) do
     %SagaSchema{
-      unique_identifier: "#{name}:#{id}",
+      uuid: "#{name}:#{id}",
       saga_name: name,
       states: %{},
       context: %{},
@@ -42,7 +42,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         |> Enum.map(fn {_response_code, result} -> result end)
 
       assert Enum.all?(result_list, fn created_saga -> created_saga == saga end)
-      assert true == StorageAdapter.saga_exists?(saga.unique_identifier)
+      assert true == StorageAdapter.saga_exists?(saga.uuid)
     end
   end
 
@@ -51,7 +51,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       saga = create_saga(2, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
-      assert {:ok, ^saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      assert {:ok, ^saga} = StorageAdapter.get_saga(saga.uuid)
     end
 
     test "returns not_found if saga does not exist", _context do
@@ -64,7 +64,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       saga = create_saga(22, "example_saga")
       {:ok, _} = StorageAdapter.initialize_saga(saga)
 
-      assert true == StorageAdapter.saga_exists?(saga.unique_identifier)
+      assert true == StorageAdapter.saga_exists?(saga.uuid)
     end
 
     test "returns false if saga does not exist", _context do
@@ -80,7 +80,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       {:ok, updated_saga} = StorageAdapter.mark_as_completed(saga)
       assert updated_saga.marked_as_completed
 
-      {:ok, result} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, result} = StorageAdapter.get_saga(saga.uuid)
       assert result == updated_saga
     end
 
@@ -99,7 +99,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
-      {:ok, updated_saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
       assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
     end
   end
@@ -111,7 +111,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
       assert :ok = StorageAdapter.complete_saga(saga)
 
-      assert false == StorageAdapter.saga_exists?(saga.unique_identifier)
+      assert false == StorageAdapter.saga_exists?(saga.uuid)
     end
 
     test "completes (deletes) a saga during high concurrency" do
@@ -131,7 +131,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         |> Enum.map(fn {_response_code, result} -> result end)
 
       assert Enum.all?(result_list, fn created_saga -> created_saga == :ok end)
-      assert false == StorageAdapter.saga_exists?(saga.unique_identifier)
+      assert false == StorageAdapter.saga_exists?(saga.uuid)
     end
   end
 
@@ -144,7 +144,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       {:ok, updated_saga} = StorageAdapter.assign_state(saga, new_state)
       assert updated_saga.states == new_state
 
-      {:ok, result} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, result} = StorageAdapter.get_saga(saga.uuid)
       assert result == updated_saga
     end
 
@@ -165,7 +165,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
-      {:ok, updated_saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
       assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
     end
   end
@@ -179,7 +179,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
       {:ok, updated_saga} = StorageAdapter.assign_context(saga, new_context)
       assert updated_saga.context == new_context
 
-      {:ok, result} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, result} = StorageAdapter.get_saga(saga.uuid)
       assert result == updated_saga
     end
 
@@ -199,7 +199,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
-      {:ok, updated_saga} = StorageAdapter.get_saga(saga.unique_identifier)
+      {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
       assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
     end
   end

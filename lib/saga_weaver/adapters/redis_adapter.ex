@@ -14,17 +14,17 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def retry_initialize_saga(conn, new_saga) do
-    apply_watch(conn, new_saga.unique_identifier)
+    apply_watch(conn, new_saga.uuid)
 
-    case get_saga(new_saga.unique_identifier) do
+    case get_saga(new_saga.uuid) do
       {:ok, :not_found} ->
         transaction_result =
           execute_transaction(conn, [
-            ["SET", namespaced_key(new_saga.unique_identifier), encode_entity(new_saga)]
+            ["SET", namespaced_key(new_saga.uuid), encode_entity(new_saga)]
           ])
 
         case transaction_result do
-          :ok -> get_saga(new_saga.unique_identifier)
+          :ok -> get_saga(new_saga.uuid)
           {:error, :transaction_failed} -> :error
         end
 
@@ -34,8 +34,8 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     end
   end
 
-  def saga_exists?(unique_identifier) do
-    case key_exists?(unique_identifier) do
+  def saga_exists?(uuid) do
+    case key_exists?(uuid) do
       {:ok, 1} ->
         true
 
@@ -57,20 +57,20 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     conn = connection()
 
     retry_until_ok(fn ->
-      retry_mark_as_completed(conn, saga.unique_identifier)
+      retry_mark_as_completed(conn, saga.uuid)
     end)
 
-    get_saga(saga.unique_identifier)
+    get_saga(saga.uuid)
   end
 
-  defp retry_mark_as_completed(conn, unique_identifier) do
-    apply_watch(conn, unique_identifier)
-    {:ok, saga} = get_saga(unique_identifier)
+  defp retry_mark_as_completed(conn, uuid) do
+    apply_watch(conn, uuid)
+    {:ok, saga} = get_saga(uuid)
     saga = %SagaSchema{saga | marked_as_completed: true}
 
     transaction_result =
       execute_transaction(conn, [
-        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+        ["SET", namespaced_key(saga.uuid), encode_entity(saga)]
       ])
 
     case transaction_result do
@@ -90,16 +90,16 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   end
 
   def retry_complete_saga(conn, new_saga) do
-    apply_watch(conn, new_saga.unique_identifier)
+    apply_watch(conn, new_saga.uuid)
 
-    case get_saga(new_saga.unique_identifier) do
+    case get_saga(new_saga.uuid) do
       {:ok, :not_found} ->
         unwatch(conn)
         {:ok, :not_found}
 
       {:ok, saga} ->
         transaction_result =
-          execute_transaction(conn, [["DEL", namespaced_key(saga.unique_identifier)]])
+          execute_transaction(conn, [["DEL", namespaced_key(saga.uuid)]])
 
         case transaction_result do
           :ok -> {:ok, nil}
@@ -112,20 +112,20 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     conn = connection()
 
     retry_until_ok(fn ->
-      retry_assign_state(conn, saga.unique_identifier, state)
+      retry_assign_state(conn, saga.uuid, state)
     end)
 
-    get_saga(saga.unique_identifier)
+    get_saga(saga.uuid)
   end
 
-  defp retry_assign_state(conn, unique_identifier, state) do
-    apply_watch(conn, unique_identifier)
-    {:ok, saga} = get_saga(unique_identifier)
+  defp retry_assign_state(conn, uuid, state) do
+    apply_watch(conn, uuid)
+    {:ok, saga} = get_saga(uuid)
     saga = %SagaSchema{saga | states: Map.merge(saga.states, state)}
 
     transaction_result =
       execute_transaction(conn, [
-        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+        ["SET", namespaced_key(saga.uuid), encode_entity(saga)]
       ])
 
     case transaction_result do
@@ -141,20 +141,20 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     conn = connection()
 
     retry_until_ok(fn ->
-      retry_assign_context(conn, saga.unique_identifier, context)
+      retry_assign_context(conn, saga.uuid, context)
     end)
 
-    get_saga(saga.unique_identifier)
+    get_saga(saga.uuid)
   end
 
-  defp retry_assign_context(conn, unique_identifier, context) do
-    apply_watch(conn, unique_identifier)
-    {:ok, saga} = get_saga(unique_identifier)
+  defp retry_assign_context(conn, uuid, context) do
+    apply_watch(conn, uuid)
+    {:ok, saga} = get_saga(uuid)
     saga = %SagaSchema{saga | context: Map.merge(saga.context, context)}
 
     transaction_result =
       execute_transaction(conn, [
-        ["SET", namespaced_key(saga.unique_identifier), encode_entity(saga)]
+        ["SET", namespaced_key(saga.uuid), encode_entity(saga)]
       ])
 
     case transaction_result do

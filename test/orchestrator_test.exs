@@ -49,7 +49,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 1, name: "test"}
       saga = TestSaga
 
-      unique_identifier =
+      uuid =
         Identifiers.DefaultIdentifier.unique_saga_id(
           message,
           saga.entity_name(),
@@ -58,7 +58,7 @@ defmodule SagaWeaver.OrchestratorTest do
 
       {:ok, result} = Orchestrator.execute_saga(saga, message)
 
-      assert result.unique_identifier == unique_identifier
+      assert result.uuid == uuid
       assert result.marked_as_completed
     end
 
@@ -66,7 +66,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 2, name: "test"}
       saga = TestSaga
 
-      unique_identifier =
+      uuid =
         Identifiers.DefaultIdentifier.unique_saga_id(
           message,
           saga.entity_name(),
@@ -74,7 +74,7 @@ defmodule SagaWeaver.OrchestratorTest do
         )
 
       initial_saga = %SagaSchema{
-        unique_identifier: unique_identifier,
+        uuid: uuid,
         saga_name: "test_saga",
         states: %{},
         context: %{},
@@ -84,7 +84,7 @@ defmodule SagaWeaver.OrchestratorTest do
       StorageAdapter.initialize_saga(initial_saga)
       assert {:ok, _entity} = Orchestrator.execute_saga(saga, message)
 
-      {:ok, result} = StorageAdapter.get_saga(unique_identifier)
+      {:ok, result} = StorageAdapter.get_saga(uuid)
 
       assert result == :not_found
     end
@@ -95,7 +95,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 3, name: "test"}
       saga = TestSaga
 
-      _unique_identifier =
+      _uuid =
         Identifiers.DefaultIdentifier.unique_saga_id(
           message,
           saga.entity_name(),
@@ -104,7 +104,7 @@ defmodule SagaWeaver.OrchestratorTest do
 
       assert {:ok,
               %SagaSchema{
-                unique_identifier: _unique_identifier,
+                uuid: _uuid,
                 saga_name: "test_saga",
                 marked_as_completed: false
               }} = Orchestrator.start_saga(saga, message)
@@ -125,7 +125,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 5, name: "test"}
       saga = TestSaga
 
-      unique_identifier =
+      uuid =
         Identifiers.DefaultIdentifier.unique_saga_id(
           message,
           saga.entity_name(),
@@ -134,9 +134,9 @@ defmodule SagaWeaver.OrchestratorTest do
 
       Orchestrator.initialize_saga(saga, message)
 
-      {:ok, saga} = StorageAdapter.get_saga(unique_identifier)
+      {:ok, saga} = StorageAdapter.get_saga(uuid)
 
-      assert saga.unique_identifier == unique_identifier
+      assert saga.uuid == uuid
       assert saga.saga_name == "test_saga"
       assert saga.marked_as_completed == false
     end
@@ -147,7 +147,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %TestMessage{id: 6, name: "test"}
       saga = TestSaga
 
-      unique_identifier =
+      uuid =
         Identifiers.DefaultIdentifier.unique_saga_id(
           message,
           saga.entity_name(),
@@ -155,7 +155,7 @@ defmodule SagaWeaver.OrchestratorTest do
         )
 
       initial_saga = %SagaSchema{
-        unique_identifier: unique_identifier,
+        uuid: uuid,
         saga_name: "test_saga",
         states: %{},
         context: %{},

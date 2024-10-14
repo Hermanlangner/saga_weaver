@@ -10,6 +10,7 @@ defmodule SagaWeaver.MixProject do
       version: @version,
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: aliases(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -39,6 +40,13 @@ defmodule SagaWeaver.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_env), do: ["lib"]
+
+  defp aliases do
+    [
+      "test.reset": ["ecto.drop", "test.setup"],
+      "test.setup": ["ecto.create", "ecto.migrate"]
+    ]
+  end
 
   defp package do
     [
@@ -72,7 +80,9 @@ defmodule SagaWeaver.MixProject do
       {:elixir_uuid, "~>1.2", only: [:dev, :test]},
       {:jason, "~> 1.2"},
       {:redix, "~> 1.5"},
-      {:ecto, "~> 3.12"}
+      {:ecto, "~> 3.12"},
+      {:ecto_sql, "~> 3.12"},
+      {:postgrex, "~> 0.16", optional: true}
     ]
   end
 end

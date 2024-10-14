@@ -18,7 +18,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
 
   defp create_saga(id, name) do
     %SagaSchema{
-      unique_identifier: "#{name}:#{id}",
+      uuid: "#{name}:#{id}",
       saga_name: name,
       states: %{},
       context: %{},
@@ -32,7 +32,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert {:ok, ^saga} = RedisAdapter.initialize_saga(saga)
 
       {:ok, result} =
-        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.unique_identifier}"])
+        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.uuid}"])
 
       assert :erlang.binary_to_term(result) == saga
     end
@@ -43,7 +43,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       saga = create_saga(2, "example_saga")
       {:ok, _} = RedisAdapter.initialize_saga(saga)
 
-      assert {:ok, ^saga} = RedisAdapter.get_saga(saga.unique_identifier)
+      assert {:ok, ^saga} = RedisAdapter.get_saga(saga.uuid)
     end
 
     test "returns not found if saga does not exist", _context do
@@ -60,7 +60,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert updated_saga.marked_as_completed
 
       {:ok, result} =
-        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.unique_identifier}"])
+        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.uuid}"])
 
       assert :erlang.binary_to_term(result) == updated_saga
     end
@@ -74,7 +74,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert :ok = RedisAdapter.complete_saga(saga)
 
       {:ok, result} =
-        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.unique_identifier}"])
+        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.uuid}"])
 
       assert result == nil
     end
@@ -90,7 +90,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert updated_saga.states == new_state
 
       {:ok, result} =
-        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.unique_identifier}"])
+        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.uuid}"])
 
       assert :erlang.binary_to_term(result) == updated_saga
     end
@@ -106,7 +106,7 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
       assert updated_saga.context == new_context
 
       {:ok, result} =
-        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.unique_identifier}"])
+        Redix.command(context[:conn], ["GET", "saga_weaver_test:#{saga.uuid}"])
 
       assert :erlang.binary_to_term(result) == updated_saga
     end

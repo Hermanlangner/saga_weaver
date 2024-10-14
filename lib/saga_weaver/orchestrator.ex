@@ -43,7 +43,7 @@ defmodule SagaWeaver.Orchestrator do
       )
 
     initial_state = %SagaSchema{
-      unique_identifier: unique_saga_id,
+      uuid: unique_saga_id,
       saga_name: saga.entity_name(),
       states: %{},
       context: %{},
