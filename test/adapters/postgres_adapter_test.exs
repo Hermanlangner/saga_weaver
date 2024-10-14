@@ -4,6 +4,11 @@ defmodule SagaWeaver.Adapters.PostgresAdapterTest do
   alias SagaWeaver.Adapters.PostgresAdapter
   alias SagaWeaver.SagaSchema
 
+  setup_all do
+    Application.put_env(SagaWeaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
+    :ok
+  end
+
   test "saga_exists?/1 returns false when no saga exists" do
     assert PostgresAdapter.saga_exists?("1234") == false
   end

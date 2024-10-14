@@ -3,6 +3,7 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   @behaviour SagaWeaver.Adapters.StorageAdapter
 
   alias SagaWeaver.Adapters.StorageAdapter
+  alias SagaWeaver.Config
   alias SagaWeaver.SagaSchema
   import Ecto.Query
 
@@ -167,6 +168,6 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   defp handle_db_result({:error, changeset}), do: {:error, changeset}
 
   defp repo do
-    Application.get_env(:saga_weaver, :repo)
+    Config.repo()
   end
 end

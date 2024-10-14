@@ -19,3 +19,10 @@ config :saga_weaver, SagaWeaver.Test.Repo,
 
 config :saga_weaver,
   ecto_repos: [SagaWeaver.Test.Repo]
+
+config :saga_weaver, SagaWeaver,
+  host: "localhost",
+  port: 6379,
+  namespace: "saga_weaver_test",
+  storage_adapter: SagaWeaver.Adapters.RedisAdapter,
+  repo: SagaWeaver.Test.Repo
