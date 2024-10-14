@@ -31,7 +31,9 @@ be found at <https://hexdocs.pm/saga_weaver>.
 - [ ] Make atoms work correctly for PostgreSQL adapters: Ensure that atoms are handled appropriately when using PostgreSQL as the storage backend.
 - [ ] Ensure workflows are as expected if saga is killed while processing: Improve fault tolerance by handling unexpected terminations gracefully.
 - [ ] Adopt Nimble Config for better configs: Utilize NimbleConfig for more robust and flexible configuration management.
+
 **Features**
+
 - [ ] Allow capability to schedule timeouts for timeouts: Implement functionality to handle timeouts, allowing sagas to be scheduled for timeout actions.
 - [ ] Store historic completed sagas with a TTL: Enable storage of completed sagas with a Time-To-Live (TTL) to retain history for a configurable duration.
 - [ ] Add observability queries: Introduce built-in queries to monitor saga executions and states for better observability.
