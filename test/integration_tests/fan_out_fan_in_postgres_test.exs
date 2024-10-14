@@ -53,7 +53,11 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInPostgresTest do
   end
 
   setup_all do
-    Application.put_env(SagaWeaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
+    Application.put_env(:saga_weaver, SagaWeaver,
+      storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
+      repo: SagaWeaver.Test.Repo
+    )
+
     :ok
   end
 

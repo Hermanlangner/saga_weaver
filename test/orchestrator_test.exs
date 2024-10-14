@@ -8,6 +8,14 @@ defmodule SagaWeaver.OrchestratorTest do
 
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
+
+    Application.put_env(:saga_weaver, SagaWeaver,
+      host: "localhost",
+      port: 6379,
+      namespace: "saga_weaver_test",
+      storage_adapter: SagaWeaver.Adapters.RedisAdapter
+    )
+
     {:ok, conn: conn}
   end
 
