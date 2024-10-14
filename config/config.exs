@@ -9,7 +9,7 @@ config :saga_weaver, SagaWeaver.Test.Repo,
   pool_size: System.schedulers_online() * 2,
   username: System.get_env("DB_USERNAME", "postgres"),
   password: System.get_env("DB_PASSWORD", "postgres"),
-  hostname: System.get_env("DB_HOST", "localhost"),
+  hostname: System.get_env("DB_HOST", "postgres"),
   database: System.get_env("DB_NAME", "saga_weaver_test"),
   priv: "test/support/migrations/postgres",
   stacktrace: true
