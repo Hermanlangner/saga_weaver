@@ -43,7 +43,7 @@ defmodule SagaWeaver.MixProject do
 
   defp aliases do
     [
-      test: ["test.reset", "test.setup", "test"],
+      test: ["test.setup", "test"],
       "test.reset": ["ecto.drop", "test.setup"],
       "test.setup": ["ecto.create", "ecto.migrate"]
     ]
