@@ -122,7 +122,7 @@ defmodule SagaWeaver.OrchestratorTest do
       message = %UnsupportedMessage{id: 4, name: "test"}
       saga = TestSaga
 
-      assert {:ok,
+      assert {:noop,
               "No active Sagas were found for this message, this message also does not start a new Saga."} =
                Orchestrator.start_saga(saga, message)
     end
