@@ -46,8 +46,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REDIS_HOST: localhost
       REDIS_PORT: 6379
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
     steps:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
