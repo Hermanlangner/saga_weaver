@@ -208,7 +208,7 @@ A breakdown on how to use a saga. All you need is a starting message, and an ide
 `started_by` is the bread and butter of SagaWeaver. To have a valid Saga you need at least 1 struct that starts a Saga. It's possible for all messages to start a saga, and there is no required order. You can handle it through setting the state to co-ordinate the transaction.
 
 ```elixir
-ready_for_next_step =     instance.states["start_message_1"] && instance.states["start_message_2"]
+ready_for_next_step = instance.states["start_message_1"] && instance.states["start_message_2"]
 
 if read_for_next_step do
  ## Logic to kick off next step process
