@@ -16,6 +16,7 @@ Distributed transactions are already hard on their own, Saga Weaver lets you foc
 - Life Cycles are fully configurable, The conditions to start a saga, fork a workflow, trigger a compensating transaction or close a saga are all simply your elixir code.
 - Setting state and context is intended to `feel` like the live view flow, so that there's familiarity with the rest of your eco system.
 - Any struct that participates in a Saga needs to be able to be transformed to the Saga identifier
+- While an Inbox/Outbox pattern is not present, we follow that at least once delivery approach. It needs to be ensured that application logic supports it.
 
 ## Installation
 
@@ -30,7 +31,7 @@ def deps do
 end
 ```
 
-- Add SagaWeaver to your application
+- Add SagaWeaver to your `application.ex`
 
 ```elixir
 children = [
@@ -40,7 +41,7 @@ children = [
 
 ### Postgress
 
-- If you're using Postgress, you need to generate a migration to setup the saga_weaver table
+- If you're using Postgres, you need to generate a migration to setup the saga_weaver table
 
 ```elixir
   mix ecto.gen.migration add_saga_weaver_table
@@ -69,12 +70,145 @@ Then add the following to your migration
 
 ```elixir
 config :saga_weaver, SagaWeaver,
+  storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
+  repo: MyApp.Repo
+```
+
+### Redis
+
+add your redis config
+
+```elixir
+config :saga_weaver, SagaWeaver,
   host: "localhost",
   port: 6379,
-  namespace: "saga_weaver_test",
-  storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
-  repo: SagaWeaver.Test.Repo
+  namespace: "my_app",
+  storage_adapter: SagaWeaver.Adapters.RedisAdapter,
 ```
+
+## Example
+
+A simple version of a saga, with one created message and one close message. We can define it as follows
+
+```elixir
+  defmodule StartSagaMessage do
+    defstruct [:id, :name]
+  end
+
+  defmodule CloseSagaMessage do
+    defstruct [:external_id, :fanout_id]
+  end
+
+ defmodule SimpleSaga do
+    use SagaWeaver.Saga,
+      started_by: [StartSagaMessage],
+      identity_key_mapping: %{
+        StartSagaMessage => fn message -> %{id: message.id} end,
+        CloseSagaMessage => fn message -> %{id: message.external_id} end
+      }
+
+    alias SagaWeaver.SagaSchema
+
+    def handle_message(%SagaSchema{} = instance, %StartSagaMessage{} = message) do
+     case instance.states["start_handled"] do
+         true -> IO.puts "Start Message already handled for id: #{message.id}"
+         _other ->
+           IO.puts "Starting Saga for id: #{message.id}"
+           #Do initial setup
+     end
+
+     {:ok,
+      instance
+      |> assign_state("start_handled", true)}
+    end
+
+    def handle_message(%SagaSchema{} = instance, %CloseSagaMessage{} = message) do
+      instance = instance |> assign_state("close_handled", true)
+
+      if ready_to_complete?(instance) do
+        IO.puts "All conditions for closure have been met, closing"
+        {:ok, instance |> mark_as_completed()}
+      else
+        {:ok, instance}
+      end
+    end
+
+    defp ready_to_complete?(instance) do
+      instance.states["start_handled"] && instance.states["close_handled"]
+    end
+ end
+```
+
+This basic saga gets started with the Start message and closes when the accompanying Close message happens.
+Let's see how this pans out.
+
+- Ensure you're fully migrated `mix ecto.migrate`
+- Open up your shell `iex -S mix`
+- Setup some structs from the above example
+
+```elixir
+start_message = %StartSagaMessage{id: 1, name: "started"}
+close_message = %CloseSagaMessage{external_id: 1, fanout_id: 24}
+fake_close_message = %CloseSagaMessage{external_id: 2, fanout_id: 23}
+```
+
+Let's try and start a saga.
+Run
+
+```elixir
+SagaWeaver.execute_saga(SimpleSaga, start_message)
+```
+
+The should be output for
+`Starting Saga for id: 1`
+
+If you run the command a second time, you should get
+`Start Message already handled for id: 1`
+
+Lets try and handle a close message that can't be associated to the saga
+
+```elixir
+SagaWeaver.execute_saga(SimpleSaga, fake_close_message)
+```
+
+you will get
+
+```elixir
+{:noop,
+ "No active Sagas were found for this message, this message also does not start a new Saga."}
+```
+
+Let's trigger a message that will close the Saga
+
+```elixir
+SagaWeaver.execute_saga(SimpleSaga, close_message)
+```
+
+`All conditions for closure have been met, closing`
+
+## `use Saga`
+
+A breakdown on how to use a saga. All you need is a starting message, and an identity map
+
+```elixir
+    use SagaWeaver.Saga,
+      started_by: [StartSagaMessage],
+      identity_key_mapping: %{
+        StartSagaMessage => fn message -> %{id: message.id} end,
+        CloseSagaMessage => fn message -> %{id: message.external_id} end
+      }
+
+```
+
+### Started By
+
+### identity_key_mapping
+
+### Setting State
+
+### Setting Context
+
+### Completing A saga
 
 ## Roadmap
 

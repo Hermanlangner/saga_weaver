@@ -4,15 +4,22 @@ defmodule SagaWeaver.Orchestrator do
   alias SagaWeaver.Identifiers.SagaIdentifier
   alias SagaWeaver.SagaSchema
 
-  @spec execute_saga(atom(), map()) :: {:ok, SagaSchema.t()}
+  @spec execute_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:noop, String.t()}
   def execute_saga(saga, message) do
-    {:ok, instance_case} =
+    fetch_saga_result =
       case retrieve_saga(saga, message) do
         {:ok, :not_found} -> start_saga(saga, message)
         {:ok, instance} -> {:ok, instance}
       end
 
-    {:ok, updated_entity} = saga.handle_message(instance_case, message)
+    case fetch_saga_result do
+      {:ok, instance} -> handle_saga(saga, instance, message)
+      {:noop, reason} -> {:noop, reason}
+    end
+  end
+
+  defp handle_saga(saga, instance, message) do
+    {:ok, updated_entity} = saga.handle_message(instance, message)
 
     if updated_entity.marked_as_completed do
       StorageAdapter.complete_saga(updated_entity)
@@ -28,7 +35,7 @@ defmodule SagaWeaver.Orchestrator do
       saga
       |> initialize_saga(message)
     else
-      {:ok,
+      {:noop,
        "No active Sagas were found for this message, this message also does not start a new Saga."}
     end
   end
