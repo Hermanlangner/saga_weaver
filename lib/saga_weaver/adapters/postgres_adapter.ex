@@ -2,16 +2,17 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   @moduledoc false
   @behaviour SagaWeaver.Adapters.StorageAdapter
 
+  alias SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.SagaSchema
   import Ecto.Query
 
-  @impl SagaSchema
+  @impl StorageAdapter
   def initialize_saga(%SagaSchema{} = saga) do
     case get_saga(saga.uuid) do
       {:ok, :not_found} ->
         try_create_saga(saga)
 
-      {:ok, existing_saga} = ok ->
+      {:ok, _existing_saga} = ok ->
         ok
     end
   end
@@ -22,7 +23,7 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
     |> SagaSchema.changeset(%{})
     |> repo().insert()
     |> case do
-      {:ok, saga} = ok ->
+      {:ok, _saga} = ok ->
         ok
 
       {:error, changeset} ->
@@ -31,26 +32,22 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   end
 
   defp handle_insert_failure(changeset) do
-    unique_collision =
-      {"has already been taken",
-       [constraint: :unique, constraint_name: "sagaweaver_sagas_uuid_index"]}
-
     case Keyword.get(changeset.errors, :uuid) do
-      unique_collision ->
+      {"has already been taken", _constraint_error} ->
         get_saga(changeset.data.uuid)
 
-      _errors ->
+      [] ->
         raise "Unable to create saga: #{inspect(changeset)}"
     end
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec saga_exists?(String.t()) :: boolean()
   def saga_exists?(uuid) do
     repo().exists?(from(s in SagaSchema, where: s.uuid == ^uuid))
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec get_saga(String.t()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
   def get_saga(uuid) do
     case repo().get_by(SagaSchema, uuid: uuid) do
@@ -59,12 +56,12 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
     end
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec mark_as_completed(SagaSchema.t()) :: {:ok, SagaSchema.t()}
   def mark_as_completed(%SagaSchema{} = saga) do
     update_saga(saga, %{marked_as_completed: true})
     |> case do
-      {:ok, updated_saga} = ok ->
+      {:ok, _updated_saga} = ok ->
         ok
 
       {:error, :stale_entry} ->
@@ -72,7 +69,7 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
     end
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec complete_saga(SagaSchema.t()) :: :ok
   def complete_saga(%SagaSchema{} = saga) do
     case repo().delete(saga,
@@ -85,25 +82,25 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
     end
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec assign_state(SagaSchema.t(), map()) :: {:ok, SagaSchema.t()}
   def assign_state(%SagaSchema{} = saga, state) do
-    updated_states = Map.merge(saga.states || %{}, state)
-    update_saga(saga, %{states: updated_states})
-
     update_fn = fn saga ->
-      updated_states = Map.merge(saga.states || %{}, state)
+      s_states = Enum.map(state, fn {k, v} -> {to_string(k), v} end) |> Map.new()
+      updated_states = Map.merge(saga.states || %{}, s_states)
       try_update_saga(saga, %{states: updated_states})
     end
 
     try_update_until_not_stale(saga.uuid, update_fn)
   end
 
-  @impl SagaSchema
+  @impl StorageAdapter
   @spec assign_context(SagaSchema.t(), map()) :: {:ok, SagaSchema.t()}
   def assign_context(%SagaSchema{} = saga, context) do
+    s_context = Enum.map(context, fn {k, v} -> {to_string(k), v} end) |> Map.new()
+
     update_fn = fn saga ->
-      updated_context = Map.merge(saga.context || %{}, context)
+      updated_context = Map.merge(saga.context || %{}, s_context)
       try_update_saga(saga, %{context: updated_context})
     end
 
@@ -123,19 +120,19 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   defp try_update_until_not_stale(uuid, update_fn, delay \\ 0) do
     get_saga(uuid)
     |> case do
-      {:ok, saga} = ok ->
+      {:ok, :not_found} = not_found ->
+        not_found
+
+      {:ok, saga} ->
         update_fn.(saga)
         |> case do
-          {:ok, saga} = ok ->
-            ok
-
           {:ok, :stale_entry} ->
             Process.sleep(delay)
             try_update_until_not_stale(uuid, update_fn, delay + 1)
-        end
 
-      {:ok, :not_found} = not_found ->
-        not_found
+          {:ok, _saga} = ok ->
+            ok
+        end
     end
   end
 
@@ -148,21 +145,21 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
       returning: true
     )
     |> case do
-      {:ok, saga} = ok ->
+      {:ok, _saga} = ok ->
         ok
 
       {:error, changeset} ->
-        handle_insert_failure(changeset)
+        handle_update_failure(changeset)
     end
   end
 
   defp handle_update_failure(changeset) do
     case Keyword.get(changeset.errors, :lock_version) do
-      ["is stale"] ->
-        {:ok, :stale_entry}
+      [] ->
+        raise "Unable to create saga: #{inspect(changeset)}"
 
-      _errors ->
-        raise "Unable to update saga: #{inspect(changeset)}"
+      {"is stale", [stale: true]} ->
+        {:ok, :stale_entry}
     end
   end
 

@@ -1,20 +1,12 @@
-defmodule SagaWeaver.Adapters.StorageAdapterTest do
-  @moduledoc """
-   While only the RedisAdapter is implemented completely, The StorageAdapterTests will mostly test scenarios all adapters should be able to handle.
-  """
-  use ExUnit.Case
+defmodule SagaWeaver.Adapters.StorageAdapterPostgresTest do
+  @moduledoc false
+  use SagaWeaver.DataCase
   alias SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.SagaSchema
 
   setup_all do
-    {:ok, conn} = Redix.start_link("redis://localhost:6379")
-
-    on_exit(fn ->
-      Redix.command(conn, ["FLUSHALL"])
-      Repo.delete_all(SagaSchema)
-    end)
-
-    {:ok, conn: conn}
+    Application.put_env(:saga_weaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
+    :ok
   end
 
   defp create_saga(id, name) do
@@ -42,15 +34,20 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         )
         |> Enum.map(fn {_response_code, result} -> result end)
 
-      assert Enum.all?(result_list, fn created_saga -> created_saga == saga end)
+      sage_to_check = List.first(result_list)
+
+      assert Enum.all?(result_list, fn created_saga ->
+               created_saga === sage_to_check
+             end)
+
       assert true == StorageAdapter.saga_exists?(saga.uuid)
     end
   end
 
   describe "get_saga/1" do
     test "returns a saga if it exists" do
-      saga = create_saga(2, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(2, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       assert {:ok, ^saga} = StorageAdapter.get_saga(saga.uuid)
     end
@@ -62,8 +59,8 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
   describe "saga_exists?/1" do
     test "returns a saga if it exists" do
-      saga = create_saga(22, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(22, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       assert true == StorageAdapter.saga_exists?(saga.uuid)
     end
@@ -75,8 +72,8 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
   describe "mark_as_completed/1" do
     test "marks a saga as completed" do
-      saga = create_saga(3, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(3, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       {:ok, updated_saga} = StorageAdapter.mark_as_completed(saga)
       assert updated_saga.marked_as_completed
@@ -86,8 +83,8 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
     end
 
     test "marks a saga as completed during high concurrency" do
-      saga = create_saga(33, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(33, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       result_list =
         Task.async_stream(
@@ -101,14 +98,17 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         |> Enum.map(fn {_response_code, result} -> result end)
 
       {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
-      assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
+
+      assert Enum.all?(result_list, fn created_saga ->
+               created_saga.marked_as_completed == updated_saga.marked_as_completed
+             end)
     end
   end
 
   describe "complete_saga/1" do
     test "completes (deletes) a saga" do
-      saga = create_saga(4, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(4, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       assert :ok = StorageAdapter.complete_saga(saga)
 
@@ -116,8 +116,8 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
     end
 
     test "completes (deletes) a saga during high concurrency" do
-      saga = create_saga(44, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(44, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
       assert :ok = StorageAdapter.complete_saga(saga)
 
@@ -138,10 +138,10 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
   describe "assign_state/2" do
     test "assigns a state to a saga" do
-      saga = create_saga(53, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      saga_struct = create_saga(53, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(saga_struct)
 
-      new_state = %{step: "completed"}
+      new_state = %{"step" => "completed"}
       {:ok, updated_saga} = StorageAdapter.assign_state(saga, new_state)
       assert updated_saga.states == new_state
 
@@ -151,9 +151,9 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
     # This is actually a bad test, need to simulate fan in and fan out test
     test "assigns a state to a saga during high concurrency" do
-      saga = create_saga(663, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
-      new_state = %{step: "completed"}
+      created_saga = create_saga(663, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
+      new_state = %{"step" => "completed"}
 
       result_list =
         Task.async_stream(
@@ -167,26 +167,32 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         |> Enum.map(fn {_response_code, result} -> result end)
 
       {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
-      assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
+
+      assert Enum.all?(result_list, fn created_saga ->
+               created_saga.states == updated_saga.states &&
+                 created_saga.uuid == updated_saga.uuid
+             end)
     end
   end
 
   describe "assign_context/2" do
     test "assigns a context to a saga" do
-      saga = create_saga(7, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(7, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
 
-      new_context = %{user: "tester"}
+      new_context = %{"user" => "tester"}
       {:ok, updated_saga} = StorageAdapter.assign_context(saga, new_context)
       assert updated_saga.context == new_context
 
       {:ok, result} = StorageAdapter.get_saga(saga.uuid)
-      assert result == updated_saga
+
+      assert result.context == updated_saga.context &&
+               result.uuid == updated_saga.uuid
     end
 
     test "assigns a context to a saga during high concurrency" do
-      saga = create_saga(77, "example_saga")
-      {:ok, _} = StorageAdapter.initialize_saga(saga)
+      created_saga = create_saga(77, "example_saga")
+      {:ok, saga} = StorageAdapter.initialize_saga(created_saga)
       new_context = %{user: "tester"}
 
       result_list =
@@ -201,7 +207,11 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
         |> Enum.map(fn {_response_code, result} -> result end)
 
       {:ok, updated_saga} = StorageAdapter.get_saga(saga.uuid)
-      assert Enum.all?(result_list, fn created_saga -> created_saga == updated_saga end)
+
+      assert Enum.all?(result_list, fn created_saga ->
+               created_saga.context == updated_saga.context &&
+                 created_saga.uuid == updated_saga.uuid
+             end)
     end
   end
 end

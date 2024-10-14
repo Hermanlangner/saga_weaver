@@ -1,7 +1,7 @@
-defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
-  use ExUnit.Case
-  alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanInMessage
-  alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
+defmodule SagaWeaver.IntegrationTests.FanOutFanInPostgresTest do
+  use SagaWeaver.DataCase
+  alias SagaWeaver.IntegrationTests.FanOutFanInPostgresTest.FanInMessage
+  alias SagaWeaver.IntegrationTests.FanOutFanInPostgresTest.FanOutMessage
 
   defmodule FanOutMessage do
     defstruct [:id, :name]
@@ -19,8 +19,8 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
         FanInMessage => fn message -> %{id: message.fanout_id} end
       }
 
-    alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanInMessage
-    alias SagaWeaver.IntegrationTests.FanOutFanInTest.FanOutMessage
+    alias SagaWeaver.IntegrationTests.FanOutFanInPostgresTest.FanInMessage
+    alias SagaWeaver.IntegrationTests.FanOutFanInPostgresTest.FanOutMessage
 
     alias SagaWeaver.SagaSchema
 
@@ -50,6 +50,11 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInTest do
       Map.values(instance.states)
       |> Enum.all?(fn value -> value end)
     end
+  end
+
+  setup_all do
+    Application.put_env(:saga_weaver, :storage_adapter, SagaWeaver.Adapters.PostgresAdapter)
+    :ok
   end
 
   test "Synchronous Fan out and Fan in completes saga" do

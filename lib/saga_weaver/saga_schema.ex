@@ -18,6 +18,7 @@ defmodule SagaWeaver.SagaSchema do
   def changeset(saga, attrs) do
     saga
     |> cast(attrs, [
+      :id,
       :uuid,
       :saga_name,
       :states,

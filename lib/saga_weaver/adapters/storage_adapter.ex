@@ -1,7 +1,6 @@
 defmodule SagaWeaver.Adapters.StorageAdapter do
   @moduledoc false
-  alias SagaWeaver.Adapters.RedisAdapter
-  alias SagaWeaver.SagaSchema
+  alias SagaWeaver.{Config, SagaSchema}
 
   @callback initialize_saga(SagaSchema.t()) ::
               {:ok, SagaSchema.t()} | {:error, Ecto.Changeset.t()}
@@ -33,5 +32,5 @@ defmodule SagaWeaver.Adapters.StorageAdapter do
   @spec assign_context(SagaSchema.t(), map()) :: {:ok, SagaSchema.t()}
   def assign_context(saga_schema, context), do: impl().assign_context(saga_schema, context)
 
-  defp impl, do: RedisAdapter
+  defp impl, do: Config.storage_adapter()
 end

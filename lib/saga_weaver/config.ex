@@ -14,12 +14,14 @@ defmodule SagaWeaver.Config do
   def database, do: config_value(:database)
   def namespace, do: config_value(:namespace)
 
+  def storage_adapter, do: config_value(:storage_adapter)
+
   @doc """
   Returns the configuration value for the given key.
   """
   @spec config_value(atom()) :: any()
   def config_value(key) do
-    case Application.get_env(:saga_weaver, SagaWeaver)[key] do
+    case Application.get_env(:saga_weaver, key) do
       nil -> Map.get(@default_config, key)
       value -> value
     end
