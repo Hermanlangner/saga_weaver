@@ -3,9 +3,12 @@ defmodule SagaWeaver.Test.Repo.Migrations.AddSagaTable do
 
   def change do
     create table(:sagaweaver_sagas) do
-      add(:uuid, :uuid)
-      add(:name, :string)
-      add(:status, :string)
+      add(:uuid, :string)
+      add(:saga_name, :string)
+      add(:states, :map, default: %{})
+      add(:context, :map, default: %{})
+      add(:marked_as_completed, :boolean, default: false)
+      add(:lock_version, :integer, default: 1)
 
       timestamps()
     end

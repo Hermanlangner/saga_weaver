@@ -19,7 +19,7 @@ defmodule SagaWeaver.DataCase do
   end
 
   def setup_sandbox(tags) do
-    pid = Sandbox.start_owner!(Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(SagaWeaver.Test.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 end

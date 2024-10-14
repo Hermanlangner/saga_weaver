@@ -11,6 +11,7 @@ defmodule SagaWeaver.Adapters.StorageAdapterTest do
 
     on_exit(fn ->
       Redix.command(conn, ["FLUSHALL"])
+      Repo.delete_all(SagaSchema)
     end)
 
     {:ok, conn: conn}

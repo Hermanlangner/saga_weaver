@@ -5,6 +5,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   alias SagaWeaver.Config
   alias SagaWeaver.SagaSchema
 
+  @spec initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()}
   def initialize_saga(%SagaSchema{} = saga) do
     conn = connection()
 

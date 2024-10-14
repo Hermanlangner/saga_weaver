@@ -3,7 +3,8 @@ defmodule SagaWeaver.Adapters.StorageAdapter do
   alias SagaWeaver.Adapters.RedisAdapter
   alias SagaWeaver.SagaSchema
 
-  @callback initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()}
+  @callback initialize_saga(SagaSchema.t()) ::
+              {:ok, SagaSchema.t()} | {:error, Ecto.Changeset.t()}
   @callback saga_exists?(String.t()) :: boolean
   @callback get_saga(String.t()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
   @callback mark_as_completed(SagaSchema.t()) :: {:ok, SagaSchema.t()}
@@ -11,10 +12,10 @@ defmodule SagaWeaver.Adapters.StorageAdapter do
   @callback assign_state(SagaSchema.t(), map()) :: {:ok, SagaSchema.t()}
   @callback assign_context(SagaSchema.t(), map()) :: {:ok, SagaSchema.t()}
 
-  @spec initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()}
+  @spec initialize_saga(SagaSchema.t()) :: {:ok, SagaSchema.t()} | {:error, Ecto.Changeset.t()}
   def initialize_saga(saga_schema), do: impl().initialize_saga(saga_schema)
 
-  @spec saga_exists?(any()) :: boolean
+  @spec saga_exists?(any()) :: boolean()
   def saga_exists?(key), do: impl().saga_exists?(key)
 
   @spec get_saga(String.t()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}

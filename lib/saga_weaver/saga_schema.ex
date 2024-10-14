@@ -27,12 +27,9 @@ defmodule SagaWeaver.SagaSchema do
     ])
     |> validate_required([
       :uuid,
-      :saga_name,
-      :states,
-      :context,
-      :marked_as_completed,
-      :lock_version
+      :saga_name
     ])
+    |> unique_constraint(:uuid)
     |> optimistic_lock(:lock_version)
   end
 end
