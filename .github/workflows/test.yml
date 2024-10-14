@@ -71,7 +71,7 @@ jobs:
 
       - run: mix credo --strict
 
-      - run: mix dialyzer
+      - run: mix dialyzer --plt
 
       - name: Check for abandonded packages
         run: mix hex.audit
