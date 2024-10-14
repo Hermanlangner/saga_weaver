@@ -166,7 +166,7 @@ defmodule SagaWeaver.Adapters.PostgresAdapter do
   defp handle_db_result({:ok, saga}), do: {:ok, saga}
   defp handle_db_result({:error, changeset}), do: {:error, changeset}
 
-  defp repo() do
+  defp repo do
     Application.get_env(:saga_weaver, :repo)
   end
 end
