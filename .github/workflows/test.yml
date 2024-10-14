@@ -33,9 +33,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: 1.15.x
-            otp: 26
-            os: ubuntu-22.04
           - elixir: 1.16.x
             otp: 26
             os: ubuntu-22.04
