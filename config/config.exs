@@ -7,12 +7,9 @@ config :saga_weaver, SagaWeaver.Test.Repo,
   name: SagaWeaver.Test.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2,
-  username: System.get_env("DB_USERNAME", "postgres"),
-  password: System.get_env("DB_PASSWORD", "postgres"),
-  hostname: System.get_env("DB_HOST", "postgres"),
-  database: System.get_env("DB_NAME", "saga_weaver_test"),
   priv: "test/support/migrations/postgres",
-  stacktrace: true
+  stacktrace: true,
+  url: System.get_env("DATABASE_URL") || "postgres://localhost:5432/saga_weaver_test"
 
 config :saga_weaver,
   ecto_repos: [SagaWeaver.Test.Repo]
