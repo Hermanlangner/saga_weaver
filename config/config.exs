@@ -9,7 +9,13 @@ config :saga_weaver, SagaWeaver.Test.Repo,
   pool_size: System.schedulers_online() * 2,
   priv: "test/support/migrations/postgres",
   stacktrace: true,
-  url: System.get_env("DATABASE_URL") || "postgres://localhost:5432/saga_weaver_test"
+  hostname: "localhost",
+  port: 5432,
+  database: "saga_weaver_test",
+  username: "postgres",
+  password: "postgres"
+
+# url: System.get_env("DATABASE_URL") || "postgres://localhost:5432/saga_weaver_test"
 
 config :saga_weaver,
   ecto_repos: [SagaWeaver.Test.Repo]
