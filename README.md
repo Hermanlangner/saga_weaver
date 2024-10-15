@@ -271,3 +271,7 @@ If sagas are not closed, the transaction will never commit and until timeouts ar
 - [ ] Add native Elixir adapter: Implement an in-memory adapter for testing or lightweight use cases without external dependencies.
 - [ ] Allow configurable retries and timeouts
 - [ ] Add pooling to Redis Adapter
+
+## Maintainer
+
+Maintained by Herman Langner, feel free to reach out on [twitter](https://x.com/HermanLangner).
