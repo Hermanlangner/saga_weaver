@@ -6,16 +6,16 @@ on:
 jobs:
   publish:
     name: Publish
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: 1.20.3
           otp-version: 29.0.5
       - name: Fetch dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
       - name: Publish package
         run: mix hex.publish --replace --yes

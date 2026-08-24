@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     services:
       postgres:
-        image: postgres
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_DB: sagaweaver_test
           POSTGRES_PASSWORD: postgres
@@ -24,9 +24,8 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-          - 5432/tcp
       redis:
-        image: redis
+        image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -40,7 +39,7 @@ jobs:
         include:
           - elixir: 1.20.3
             otp: 29.0.5
-            os: ubuntu-22.04
+            os: ubuntu-24.04
     env:
       MIX_ENV: test
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
@@ -53,28 +52,28 @@ jobs:
       POSTGRES_USER: postgres
     steps:
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-deps
         with:
           path: |
             deps
             _build
           key: |
-            mix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+            mix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.lock') }}
           restore-keys: |
             mix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-
 
       - name: Install dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Compile
         run: mix compile --warnings-as-errors
@@ -88,14 +87,14 @@ jobs:
 
       - run: mix dialyzer --plt
 
-      - name: Check for abandonded packages
+      - name: Check retired and vulnerable packages
         run: mix hex.audit
 
       - name: Check outdated dependencies
-        run: mix hex.outdated --within-requirements || true
-
-      - name: Check for vulnerable packages
-        run: mix hex.audit
+        run: |
+          env MIX_ENV=dev mix deps.get --check-locked
+          env MIX_ENV=dev mix hex.outdated
+          env MIX_ENV=test mix hex.outdated
 
       - name: Run tests
         run: mix test
@@ -106,18 +105,93 @@ jobs:
       - name: Scan for security vulnerabilities
         run: mix sobelow --exit --threshold medium -i Misc.BinToTerm,Config.Secrets
 
+  sample:
+    name: Sample app
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+        env:
+          POSTGRES_DB: sample_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: sample_test
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: 1.20.3
+          otp-version: 29.0.5
+
+      - name: Cache dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            examples/sample/deps
+            examples/sample/_build
+          key: sample-mix-${{ runner.os }}-1.20.3-29.0.5-${{ hashFiles('examples/sample/mix.lock') }}
+
+      - name: Install dependencies
+        working-directory: examples/sample
+        run: mix deps.get --check-locked
+
+      - name: Compile
+        working-directory: examples/sample
+        run: mix compile --warnings-as-errors
+
+      - name: Check formatting
+        working-directory: examples/sample
+        run: mix format --check-formatted
+
+      - name: Check dependency freshness
+        working-directory: examples/sample
+        run: |
+          env MIX_ENV=test mix deps.get --check-locked
+          env MIX_ENV=dev mix hex.outdated
+          env MIX_ENV=test mix hex.outdated
+
+      - name: Check for unused packages
+        working-directory: examples/sample
+        run: mix deps.unlock --check-unused
+
+      - name: Check dependency security
+        working-directory: examples/sample
+        run: mix hex.audit
+
+      - name: Build assets
+        working-directory: examples/sample
+        run: mix assets.setup && mix assets.deploy
+
+      - name: Run tests
+        working-directory: examples/sample
+        run: mix test
+
   publish:
     name: Publish
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: 1.20.3
           otp-version: 29.0.5
       - name: Fetch dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
       - name: Publish package
         run: mix hex.publish --dry-run --replace --yes
