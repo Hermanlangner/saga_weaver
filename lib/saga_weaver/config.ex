@@ -1,8 +1,6 @@
 defmodule SagaWeaver.Config do
   @moduledoc false
 
-  @default_config %{}
-
   def host, do: config_value(:host)
   def port, do: config_value(:port)
   def database, do: config_value(:database)
@@ -15,9 +13,8 @@ defmodule SagaWeaver.Config do
   """
   @spec config_value(atom()) :: any()
   def config_value(key) do
-    case Application.get_env(:saga_weaver, SagaWeaver) |> Keyword.get(key) do
-      nil -> Map.get(@default_config, key)
-      value -> value
-    end
+    :saga_weaver
+    |> Application.get_env(SagaWeaver, [])
+    |> Keyword.get(key)
   end
 end

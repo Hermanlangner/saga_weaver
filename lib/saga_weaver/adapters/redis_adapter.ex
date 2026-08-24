@@ -66,7 +66,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   defp retry_mark_as_completed(conn, uuid) do
     apply_watch(conn, uuid)
-    {:ok, saga} = get_saga(uuid)
+    {:ok, %SagaSchema{} = saga} = get_saga(uuid)
     saga = %SagaSchema{saga | marked_as_completed: true}
 
     transaction_result =
@@ -121,7 +121,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   defp retry_assign_state(conn, uuid, state) do
     apply_watch(conn, uuid)
-    {:ok, saga} = get_saga(uuid)
+    {:ok, %SagaSchema{} = saga} = get_saga(uuid)
     saga = %SagaSchema{saga | states: Map.merge(saga.states, state)}
 
     transaction_result =
@@ -150,7 +150,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
 
   defp retry_assign_context(conn, uuid, context) do
     apply_watch(conn, uuid)
-    {:ok, saga} = get_saga(uuid)
+    {:ok, %SagaSchema{} = saga} = get_saga(uuid)
     saga = %SagaSchema{saga | context: Map.merge(saga.context, context)}
 
     transaction_result =

@@ -8,7 +8,7 @@ defmodule SagaWeaver.MixProject do
     [
       app: :saga_weaver,
       version: @version,
-      elixir: "~> 1.15",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
       start_permanent: Mix.env() == :prod,
@@ -74,7 +74,7 @@ defmodule SagaWeaver.MixProject do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
-      {:doctor, "~> 0.21.0", only: [:dev, :test]},
+      {:doctor, "~> 0.23.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},

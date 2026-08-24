@@ -88,14 +88,18 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInPostgresTest do
 
     {:ok, _fan_out_saga} = SagaWeaver.Orchestrator.execute_saga(FanOutSaga, fan_out_message)
 
-    Task.async_stream(
-      fan_in_messages,
-      fn message ->
-        SagaWeaver.Orchestrator.execute_saga(FanOutSaga, message)
-      end,
-      max_concurrency: 100
-    )
-    |> Enum.to_list()
+    results =
+      Task.async_stream(
+        fan_in_messages,
+        fn message ->
+          SagaWeaver.Orchestrator.execute_saga(FanOutSaga, message)
+        end,
+        max_concurrency: System.schedulers_online() * 2,
+        timeout: 30_000
+      )
+      |> Enum.to_list()
+
+    assert Enum.all?(results, &match?({:ok, {:ok, %SagaWeaver.SagaSchema{}}}, &1))
 
     fan_out_saga = SagaWeaver.Orchestrator.retrieve_saga(FanOutSaga, fan_out_message)
 
