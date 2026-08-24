@@ -7,17 +7,18 @@ defmodule CloseSagaMessage do
 end
 
 defmodule SimpleSaga do
-  use SagaWeaver.Saga,
-    started_by: [StartSagaMessage],
-    identity_key_mapping: %{
-      StartSagaMessage => fn message -> %{id: message.id} end,
-      CloseSagaMessage => fn message -> %{id: message.external_id} end
-    }
+  use SagaWeaver.Saga
 
-  alias SagaWeaver.SagaSchema
+  alias SagaWeaver.Instance
 
-  def handle_message(%SagaSchema{} = instance, %StartSagaMessage{} = message) do
-    case instance.states["start_handled"] do
+  @impl true
+  def route(%StartSagaMessage{id: id}), do: {:start, "simple:#{id}"}
+  def route(%CloseSagaMessage{external_id: id}), do: {:continue, "simple:#{id}"}
+  def route(_message), do: :ignore
+
+  @impl true
+  def handle(%Instance{} = instance, %StartSagaMessage{} = message) do
+    case instance.state["start_handled"] do
       true ->
         IO.puts("Start Message already handled for id: #{message.id}")
 
@@ -26,23 +27,21 @@ defmodule SimpleSaga do
         # Do initial setup
     end
 
-    {:ok,
-     instance
-     |> assign_state("start_handled", true)}
+    {:ok, Instance.put_state(instance, "start_handled", true)}
   end
 
-  def handle_message(%SagaSchema{} = instance, %CloseSagaMessage{}) do
-    instance = instance |> assign_state("close_handled", true)
+  def handle(%Instance{} = instance, %CloseSagaMessage{}) do
+    instance = Instance.put_state(instance, "close_handled", true)
 
     if ready_to_complete?(instance) do
       IO.puts("All conditions for closure have been met, closing")
-      {:ok, instance |> mark_as_completed()}
+      {:complete, instance}
     else
       {:ok, instance}
     end
   end
 
   defp ready_to_complete?(instance) do
-    instance.states["start_handled"] && instance.states["close_handled"]
+    instance.state["start_handled"] && instance.state["close_handled"]
   end
 end

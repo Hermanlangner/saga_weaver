@@ -44,8 +44,6 @@ jobs:
       MIX_ENV: test
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
       POSTGRES_HOST: localhost
       POSTGRES_DB: sagaweaver_test
       POSTGRES_PASSWORD: postgres

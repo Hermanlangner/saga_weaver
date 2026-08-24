@@ -60,10 +60,8 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+config :sample, Sample.Sagas, storage: {SagaWeaver.Storage.Postgres, repo: Sample.Repo}
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
-
-config :saga_weaver, SagaWeaver,
-  storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
-  repo: Sample.Repo
