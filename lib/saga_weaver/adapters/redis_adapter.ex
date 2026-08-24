@@ -49,7 +49,7 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
   def get_saga(key) do
     case fetch_record(key) do
       {:ok, nil} -> {:ok, :not_found}
-      {:ok, saga} -> {:ok, decode_entity(saga)}
+      {:ok, saga} -> decode_entity(saga)
       {:error, _} = error -> error
     end
   end
@@ -234,7 +234,14 @@ defmodule SagaWeaver.Adapters.RedisAdapter do
     :erlang.term_to_binary(entity)
   end
 
+  # Stored terms need legacy decoding; safe mode forbids creating atoms.
+  # sobelow_skip ["Misc.BinToTerm"]
   defp decode_entity(binary) do
-    :erlang.binary_to_term(binary)
+    case :erlang.binary_to_term(binary, [:safe]) do
+      %SagaSchema{} = saga -> {:ok, saga}
+      _value -> {:error, :invalid_record}
+    end
+  rescue
+    ArgumentError -> {:error, :invalid_record}
   end
 end

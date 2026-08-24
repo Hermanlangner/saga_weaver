@@ -1,289 +1,350 @@
 [![Coverage Status](https://coveralls.io/repos/github/Hermanlangner/saga_weaver/badge.svg?branch=main)](https://coveralls.io/github/Hermanlangner/saga_weaver?branch=main)
+
 # SagaWeaver
 
-A library to help you execute distributed transactions using Sagas without needing to worry about transport layers or storage implementations.
+SagaWeaver coordinates long-running, distributed workflows without owning your
+transport layer. HTTP handlers, message consumers, jobs, and internal Elixir
+code can all send events through the same saga definition.
 
-## Inspiration
+SagaWeaver provides:
 
-There are many situations where a saga can be created from 1 or more events, either through an external system or internal. Usually the pattern is implemented as part of a framework or messaging library. The goal of saga weaver is to let you hook into any method of transport (message queues or http) and still be able to run a saga.
-Storage can be a big source of race conditions, that bring a lot of mental overhead while rolling your own. Saga weaver is made to take care of that layer for you by providing storage implementations or if that's not good enough, expose an interface for you to write your own if you would like a more efficient approach or use a different pattern.
+- Explicit routing for starting and continuing saga instances.
+- Concurrency-safe PostgreSQL and Redis storage.
+- Pure state transitions committed once per handled message.
+- Retained completion records for replay protection.
+- Application-owned configuration and infrastructure.
+- Structured errors and Telemetry events.
 
-Distributed transactions are already hard on their own, Saga Weaver lets you focus on building out your application rules rather than spending time on covering storage or transport race conditions.
+SagaWeaver assumes at-least-once message delivery. Application side effects
+must therefore be idempotent.
 
-## Design Approach
+## Installation
 
-- All Saga Weaver adapters are built with optimistic concurrency as a first class citizen. While collisions are guarenteed, the most frequent scenario happens in a fan out fan in. Otherwise generally collisions are low.
-- Life Cycles are fully configurable, The conditions to start a saga, fork a workflow, trigger a compensating transaction or close a saga are all simply your elixir code.
-- Setting state and context is intended to `feel` like the live view flow, so that there's familiarity with the rest of your eco system.
-- Any struct that participates in a Saga needs to be able to be transformed to the Saga identifier
-- While an Inbox/Outbox pattern is not present, we follow that at least once delivery approach. It needs to be ensured that application logic supports it.
+Add SagaWeaver and the driver required by your chosen storage:
+
+```elixir
+def deps do
+  [
+    {:saga_weaver, "~> 0.3"},
+    {:postgrex, ">= 0.0.0"}
+  ]
+end
+```
+
+Then fetch dependencies and generate setup instructions:
+
+```shell
+mix deps.get
+mix saga_weaver.install --storage postgres
+```
+
+For Redis:
+
+```shell
+mix saga_weaver.install --storage redis
+```
+
+SagaWeaver's core is synchronous and does not require a child in your
+application supervision tree. Your application owns resources such as its Ecto
+repository and Redix connection.
+
+## Application Facade
+
+Define a facade so configuration belongs to your application rather than a
+global SagaWeaver singleton:
+
+```elixir
+defmodule MyApp.Sagas do
+  use SagaWeaver, otp_app: :my_app
+end
+```
+
+### PostgreSQL
+
+Configure the facade with your existing, supervised Ecto repository:
+
+```elixir
+config :my_app, MyApp.Sagas,
+  storage: {SagaWeaver.Storage.Postgres, repo: MyApp.Repo}
+```
+
+`mix saga_weaver.install --storage postgres` generates the compatible
+`sagaweaver_sagas` migration. The table shape remains compatible with records
+created by SagaWeaver 0.2.
+
+### Redis
+
+Add a named Redix connection to your application supervision tree:
+
+```elixir
+children = [
+  {Redix, name: MyApp.SagaRedis, host: "localhost", port: 6379}
+]
+```
+
+Then pass the connection name to the facade configuration:
+
+```elixir
+config :my_app, MyApp.Sagas,
+  storage: {
+    SagaWeaver.Storage.Redis,
+    connection: MyApp.SagaRedis,
+    namespace: "my_app"
+  }
+```
+
+SagaWeaver does not create hidden Redis connections. This keeps ownership,
+authentication, TLS, pooling, and restart behavior under application control.
+
+## Define A Saga
+
+A saga implements two callbacks:
+
+- `route/1` identifies the instance and says whether the message may start it.
+- `handle/2` returns the state transition to persist.
+
+```elixir
+defmodule MyApp.Events.OrderPlaced do
+  defstruct [:order_id, :customer_id]
+end
+
+defmodule MyApp.Events.PaymentCaptured do
+  defstruct [:order_id]
+end
+
+defmodule MyApp.OrderSaga do
+  use SagaWeaver.Saga
+
+  alias MyApp.Events.{OrderPlaced, PaymentCaptured}
+  alias SagaWeaver.Instance
+
+  @impl true
+  def route(%OrderPlaced{order_id: id}), do: {:start, "order:#{id}"}
+  def route(%PaymentCaptured{order_id: id}), do: {:continue, "order:#{id}"}
+  def route(_message), do: :ignore
+
+  @impl true
+  def handle(instance, %OrderPlaced{} = event) do
+    instance =
+      instance
+      |> Instance.put_state(:placed, true)
+      |> Instance.put_context(:customer_id, event.customer_id)
+
+    {:ok, instance}
+  end
+
+  def handle(instance, %PaymentCaptured{}) do
+    instance = Instance.put_state(instance, :paid, true)
+
+    if instance.state["placed"] do
+      {:complete, instance}
+    else
+      {:ok, instance}
+    end
+  end
+end
+```
+
+Route keys are durable storage identifiers shared by every saga in one storage
+namespace. Use globally unique, stable strings such as `"order:123"` that do
+not depend on module names or display labels. SagaWeaver rejects a key already
+owned by a different saga.
+
+### Routing Results
+
+```elixir
+{:start, "order:123"}    # Create if absent, otherwise continue it
+{:continue, "order:123"} # Handle only when an instance already exists
+:ignore                  # This saga is not interested in the message
+```
+
+An event routed with `:continue` before the starter returns
+`{:ignored, :not_started}`. An unrelated event returns
+`{:ignored, :unrouted}`.
+
+### Handler Results
+
+```elixir
+{:ok, instance}       # Commit changes and remain active
+{:complete, instance} # Commit changes and retain a completed tombstone
+{:ignore, reason}     # Acknowledge without committing
+{:error, reason}      # Return a structured callback error
+```
+
+`SagaWeaver.Instance` helpers are pure. State and context changes are committed
+once after the callback succeeds, preventing partial writes when a later part
+of a handler fails.
+
+## Handle And Fetch
+
+```elixir
+event = %MyApp.Events.OrderPlaced{order_id: 123, customer_id: 42}
+
+{:ok, instance} = MyApp.Sagas.handle(MyApp.OrderSaga, event)
+{:ok, instance} = MyApp.Sagas.fetch(MyApp.OrderSaga, "order:123")
+```
+
+`handle/2` returns:
+
+```elixir
+{:ok, %SagaWeaver.Instance{}}
+{:ignored, :unrouted | :not_started | :completed | term()}
+{:error, %SagaWeaver.Error{}}
+```
+
+`fetch/2` returns:
+
+```elixir
+{:ok, %SagaWeaver.Instance{}}
+{:error, :not_found}
+{:error, %SagaWeaver.Error{}}
+```
+
+Completed instances remain fetchable and further messages return
+`{:ignored, :completed}`. Retention and purging are separate policies; new code
+must not rely on completion deleting records. Completion is terminal: stale
+in-flight transitions cannot mutate a completed tombstone.
+
+## State And Context
+
+State contains values that drive the saga lifecycle. Context contains persisted
+information needed by later handlers or side effects.
+
+```elixir
+instance
+|> SagaWeaver.Instance.put_state(:payment_received, true)
+|> SagaWeaver.Instance.merge_state(%{inventory_reserved: true})
+|> SagaWeaver.Instance.put_context(:customer_id, 42)
+```
+
+Keys may be atoms or strings and are exposed consistently as strings across all
+storage implementations.
+
+## Testing
+
+Use the supervised memory storage for isolated tests and examples:
+
+```elixir
+setup do
+  storage = start_supervised!(SagaWeaver.Storage.Memory)
+  %{saga_options: SagaWeaver.Testing.options(storage)}
+end
+
+test "completes an order", %{saga_options: options} do
+  assert {:ok, instance} = SagaWeaver.handle(MyApp.OrderSaga, event, options)
+  assert instance.state["placed"]
+end
+```
+
+Run the complete executable quickstart with:
+
+```shell
+mix run examples/quickstart/order_saga.exs
+```
+
+## Telemetry
+
+SagaWeaver emits start, stop, and exception spans plus lifecycle events:
+
+```elixir
+[:saga_weaver, :handle, :start]
+[:saga_weaver, :handle, :stop]
+[:saga_weaver, :handle, :exception]
+[:saga_weaver, :storage, operation, :start]
+[:saga_weaver, :storage, operation, :stop]
+[:saga_weaver, :storage, operation, :exception]
+[:saga_weaver, :storage, :conflict]
+[:saga_weaver, :completion]
+[:saga_weaver, :ignored]
+```
+
+Storage `operation` is `:fetch`, `:insert_new`, or `:commit`.
+
+Metadata includes the saga, key, storage implementation, facade, result, or
+ignore reason where applicable. Telemetry handlers run in the caller process
+and should remain fast.
+
+## Custom Storage
+
+Custom storage implements `SagaWeaver.Storage`:
+
+```elixir
+@callback validate_options(keyword()) :: {:ok, keyword()} | {:error, term()}
+@callback fetch(keyword(), String.t()) ::
+            {:ok, SagaWeaver.Instance.t()} | {:error, term()}
+@callback insert_new(keyword(), SagaWeaver.Instance.t()) ::
+            {:ok, SagaWeaver.Instance.t()} | {:error, term()}
+@callback commit(keyword(), SagaWeaver.Instance.t(), SagaWeaver.Instance.changes()) ::
+            {:ok, SagaWeaver.Instance.t()} | {:error, term()}
+```
+
+`insert_new/2` must be idempotent. `commit/3` must atomically merge disjoint
+state and context changes. Completed records must remain readable.
+
+## Migrating From 0.2
+
+The 0.2 entry points and DSL remain available for one migration release:
+
+```elixir
+SagaWeaver.execute_saga(LegacySaga, message)
+SagaWeaver.retrieve_saga(LegacySaga, message)
+```
+
+These functions retain the old `SagaSchema` return values and
+delete-on-completion behavior. They are deprecated in favor of `handle/2` and
+`fetch/2`.
+
+Existing PostgreSQL rows and Redis terms remain readable by the new adapters.
+To migrate an active saga without changing its persisted identifier, derive the
+old key in the new route callback:
+
+```elixir
+def route(message) do
+  with {:ok, key} <- SagaWeaver.Compatibility.v1_key(__MODULE__, message) do
+    {:continue, key}
+  end
+end
+```
+
+Do not rename saga modules or alter identity mappings for active 0.2 instances
+without an explicit data migration.
+
+Deprecated Redis calls still accept the old `host` and `port` configuration.
+New Redis calls require an application-supervised Redix `connection`; host and
+port are intentionally not translated into a hidden library-owned process.
+
+## Design Principles
+
+- Transports remain application concerns.
+- No process exists without a runtime responsibility.
+- Configuration belongs to an application-owned facade.
+- Expected failures use tagged results; unexpected callback exceptions become
+  structured errors and Telemetry exception events.
+- Storage implementations share one behavioral contract.
+- Completion and data deletion are separate lifecycle decisions.
 
 ## Development
 
-The repository pins Erlang and Elixir with [mise](https://mise.jdx.dev/). After installing mise, install the project toolchain and dependencies:
+The repository pins Erlang and Elixir with [mise](https://mise.jdx.dev/):
 
 ```shell
 mise trust
 mise install
 mix deps.get
+mix test
 ```
 
-If mise is not activated in your shell, run project commands through it, for example `mise exec -- mix test`.
-
-## Installation
-
-SagaWeaver is published on [Hex](https://hexdocs.pm/saga_weaver), the package can be installed
-by adding `saga_weaver` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:saga_weaver, "~> 0.2"}
-  ]
-end
-```
-
-- Add SagaWeaver to your `application.ex`
-
-```elixir
-children = [
-      {SagaWeaver, []}
-    ]
- ```
-
-### Postgress
-
-- If you're using Postgres, you need to generate a migration to setup the saga_weaver table
-
-```elixir
-  mix ecto.gen.migration add_saga_weaver_table
-```
-
-Then add the following to your migration
-
-```elixir
-  def change do
-    create table(:sagaweaver_sagas) do
-      add(:uuid, :string)
-      add(:saga_name, :string)
-      add(:states, :map, default: %{})
-      add(:context, :map, default: %{})
-      add(:marked_as_completed, :boolean, default: false)
-      add(:lock_version, :integer, default: 1)
-
-      timestamps()
-    end
-
-    create(index(:sagaweaver_sagas, [:uuid], unique: true))
-  end
-```
-
-- Add the config to `config.exs` and set your Repo and Adapter
-
-```elixir
-config :saga_weaver, SagaWeaver,
-  storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
-  repo: MyApp.Repo
-```
-
-### Redis
-
-add your redis config to `config.exs`
-
-```elixir
-config :saga_weaver, SagaWeaver,
-  host: "localhost",
-  port: 6379,
-  namespace: "my_app",
-  storage_adapter: SagaWeaver.Adapters.RedisAdapter,
-```
-
-## Example
-
-A simple version of a saga, with one created message and one close message. We can define it as follows
-
-```elixir
-defmodule StartSagaMessage do
-  defstruct [:id, :name]
-end
-
-defmodule CloseSagaMessage do
-  defstruct [:external_id, :fanout_id]
-end
-
-defmodule SimpleSaga do
-  use SagaWeaver.Saga,
-    started_by: [StartSagaMessage],
-    identity_key_mapping: %{
-      StartSagaMessage => fn message -> %{id: message.id} end,
-      CloseSagaMessage => fn message -> %{id: message.external_id} end
-    }
-
-  alias SagaWeaver.SagaSchema
-
-  def handle_message(%SagaSchema{} = instance, %StartSagaMessage{} = message) do
-    case instance.states["start_handled"] do
-      true ->
-        IO.puts("Start Message already handled for id: #{message.id}")
-
-      _other ->
-        IO.puts("Starting Saga for id: #{message.id}")
-        # Do initial setup
-    end
-
-    {:ok,
-     instance
-     |> assign_state("start_handled", true)}
-  end
-
-  def handle_message(%SagaSchema{} = instance, %CloseSagaMessage{} = message) do
-    instance = instance |> assign_state("close_handled", true)
-
-    if ready_to_complete?(instance) do
-      IO.puts("All conditions for closure have been met, closing")
-      {:ok, instance |> mark_as_completed()}
-    else
-      {:ok, instance}
-    end
-  end
-
-  defp ready_to_complete?(instance) do
-    instance.states["start_handled"] && instance.states["close_handled"]
-  end
-end
-
-```
-
-This basic saga gets started with the Start message and closes when the accompanying Close message happens.
-Let's see how this pans out.
-
-- Ensure you're fully migrated `mix ecto.migrate`
-- Open up your shell `iex -S mix`
-- Setup some structs from the above example
-
-```elixir
-start_message = %StartSagaMessage{id: 1, name: "started"}
-close_message = %CloseSagaMessage{external_id: 1, fanout_id: 24}
-fake_close_message = %CloseSagaMessage{external_id: 2, fanout_id: 23}
-```
-
-Let's try and start a saga.
-Run
-
-```elixir
-SagaWeaver.execute_saga(SimpleSaga, start_message)
-```
-
-The should be output for
-`Starting Saga for id: 1`
-
-If you run the command a second time, you should get
-`Start Message already handled for id: 1`
-
-Lets try and handle a close message that can't be associated to the saga
-
-```elixir
-SagaWeaver.execute_saga(SimpleSaga, fake_close_message)
-```
-
-you will get
-
-```elixir
-{:noop,
- "No active Sagas were found for this message, this message also does not start a new Saga."}
-```
-
-Let's trigger a message that will close the Saga
-
-```elixir
-SagaWeaver.execute_saga(SimpleSaga, close_message)
-```
-
-`All conditions for closure have been met, closing`
-
-## `use Saga`
-
-A breakdown on how to use a saga. All you need is a starting message, and an identity map
-
-```elixir
-    use SagaWeaver.Saga,
-      started_by: [StartSagaMessage],
-      identity_key_mapping: %{
-        StartSagaMessage => fn message -> %{id: message.id} end,
-        CloseSagaMessage => fn message -> %{id: message.external_id} end
-      }
-
-```
-
-### Started By
-
-`started_by` is the bread and butter of SagaWeaver. To have a valid Saga you need at least 1 struct that starts a Saga. It's possible for all messages to start a saga, and there is no required order. You can handle it through setting the state to co-ordinate the transaction.
-
-```elixir
-ready_for_next_step = instance.states["start_message_1"] && instance.states["start_message_2"]
-
-if read_for_next_step do
- ## Logic to kick off next step process
-end
-```
-
-### identity_key_mapping
-
-In order to function with the default SagaWeaver configuration, each struct that is handled needs a map setup to extract elements to uniquely identify the saga
-In the format
-
-```elixir
-my_identity_mapping = %{
-  MyMessageModule => function_to_extract_context.(message)
-}
-```
-
-It is required for scenarios where external Api's or domains have a different name for the identifier and you need the ability to correlate them.
-In the future more sensible defaults could be worth it.
-
-### Setting State
-
-Each handler is passed an instance of a Saga where you can set states to manage your lifecycle.
-See more here - add link to hex.pm
-
-### Setting Context
-
-Context is for information that's not related to managing the state of the saga, but is needed to trigger events or possibly combined on closure
-See more here - add link to hex.pm
-
-### Completing A saga
-
-When either all your conditions for completion or rolling back has been completed. The final action you need to do is complete your saga. It's the equivalent to commiting a transaction or completing a rollback in sql.
-
-```elixir
- instance |> mark_as_completed()
-```
-
-If sagas are not closed, the transaction will never commit and until timeouts are added will have your application in a "stuck" state.
+If mise is not activated in your shell, run commands through it, for example
+`mise exec -- mix test`.
 
 ## Roadmap
 
-**Developer Experience & Quality**
-
-- [ ] Clean up tests to run for multiple adapters as a suite: Enhance the test suite to ensure compatibility and reliability across different storage adapters.
-- [ ] Generate migration for setup: Provide mix tasks to generate necessary database migrations for easy setup.
-- [ ] Make atoms work correctly for PostgreSQL adapters: Ensure that atoms are handled appropriately when using PostgreSQL as the storage backend.
-- [ ] Ensure workflows are as expected if saga is killed while processing: Improve fault tolerance by handling unexpected terminations gracefully.
-- [ ] Adopt Nimble Config for better configs: Utilize NimbleConfig for more robust and flexible configuration management.
-
-**Features**
-
-- [ ] Allow capability to schedule timeouts for timeouts: Implement functionality to handle timeouts, allowing sagas to be scheduled for timeout actions.
-- [ ] Store historic completed sagas with a TTL: Enable storage of completed sagas with a Time-To-Live (TTL) to retain history for a configurable duration.
-- [ ] Add observability queries: Introduce built-in queries to monitor saga executions and states for better observability.
-- [ ] Add alerting API: Provide an API for setting up alerts based on saga events or failures.
-- [ ] Add telemetry: Integrate with Telemetry to offer insights into saga performance and metrics.
-- [ ] Add UI to monitor and track sagas: Develop a web-based dashboard to visualize and manage sagas in real-time.
-- [ ] Add SQLite adapter: Expand storage options by adding support for SQLite.
-- [ ] Add native Elixir adapter: Implement an in-memory adapter for testing or lightweight use cases without external dependencies.
-- [ ] Allow configurable retries and timeouts
-- [ ] Add pooling to Redis Adapter
+- Configurable completion retention and TTL purging.
+- Timeout scheduling and retry policies.
+- Observability queries and a monitoring interface.
+- Additional storage implementations.
 
 ## Maintainer
 
-Maintained by Herman Langner, feel free to reach out on [twitter](https://x.com/HermanLangner).
+Maintained by Herman Langner. Feedback and contributions are welcome on
+[GitHub](https://github.com/Hermanlangner/saga_weaver).

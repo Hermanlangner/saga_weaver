@@ -6,13 +6,15 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
 
-    Application.put_env(:saga_weaver, SagaWeaver,
-      host: "localhost",
-      port: 6379,
-      namespace: "saga_weaver_test",
-      storage_adapter: SagaWeaver.Adapters.RedisAdapter
-    )
+    restore =
+      SagaWeaver.TestEnv.put_env(:saga_weaver, SagaWeaver,
+        host: "localhost",
+        port: 6379,
+        namespace: "saga_weaver_test",
+        storage_adapter: SagaWeaver.Adapters.RedisAdapter
+      )
 
+    on_exit(restore)
     {:ok, conn: conn}
   end
 
@@ -44,6 +46,15 @@ defmodule SagaWeaver.Adapters.RedisAdapterTest do
 
       assert :erlang.binary_to_term(result) == saga
     end
+  end
+
+  test "returns an error for a malformed persisted record", context do
+    key = "malformed"
+
+    assert {:ok, "OK"} =
+             Redix.command(context.conn, ["SET", "saga_weaver_test:#{key}", "not-an-erlang-term"])
+
+    assert {:error, :invalid_record} = RedisAdapter.get_saga(key)
   end
 
   describe "get_saga/1" do

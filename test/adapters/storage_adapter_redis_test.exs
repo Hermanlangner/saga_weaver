@@ -9,15 +9,17 @@ defmodule SagaWeaver.Adapters.StorageAdapterRedisTest do
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
 
-    Application.put_env(:saga_weaver, SagaWeaver,
-      host: "localhost",
-      port: 6379,
-      namespace: "saga_weaver_test",
-      storage_adapter: SagaWeaver.Adapters.RedisAdapter
-    )
+    restore =
+      SagaWeaver.TestEnv.put_env(:saga_weaver, SagaWeaver,
+        host: "localhost",
+        port: 6379,
+        namespace: "saga_weaver_test",
+        storage_adapter: SagaWeaver.Adapters.RedisAdapter
+      )
 
     on_exit(fn ->
       Redix.command(conn, ["FLUSHALL"])
+      restore.()
     end)
 
     {:ok, conn: conn}

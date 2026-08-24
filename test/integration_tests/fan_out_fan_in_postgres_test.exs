@@ -24,6 +24,7 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInPostgresTest do
 
     alias SagaWeaver.SagaSchema
 
+    @impl true
     def handle_message(%SagaSchema{} = instance, %FanOutMessage{} = _message) do
       fan_in_ids =
         1..100
@@ -53,11 +54,13 @@ defmodule SagaWeaver.IntegrationTests.FanOutFanInPostgresTest do
   end
 
   setup_all do
-    Application.put_env(:saga_weaver, SagaWeaver,
-      storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
-      repo: SagaWeaver.Test.Repo
-    )
+    restore =
+      SagaWeaver.TestEnv.put_env(:saga_weaver, SagaWeaver,
+        storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
+        repo: SagaWeaver.Test.Repo
+      )
 
+    on_exit(restore)
     :ok
   end
 

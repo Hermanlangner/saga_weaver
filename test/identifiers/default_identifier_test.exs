@@ -1,5 +1,5 @@
 defmodule SagaWeaver.Identifiers.DefaultIdentifierTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias SagaWeaver.Identifiers.DefaultIdentifier
   alias SagaWeaver.Test.TestMessage
@@ -7,7 +7,7 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifierTest do
 
   describe "unique_saga_id/3" do
     test "returns a unique id" do
-      message = %SagaWeaver.Test.TestMessage{id: 1, uuid: UUID.uuid4(), atom_key: :test_key}
+      message = %SagaWeaver.Test.TestMessage{id: 1, uuid: "test-uuid", atom_key: :test_key}
       entity_name = SagaWeaver.Test.TestSaga
 
       unique_saga_id_mapping = %{
@@ -25,7 +25,7 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifierTest do
     end
 
     test "two separate messages have the same key" do
-      uuid = UUID.uuid4()
+      uuid = "shared-test-uuid"
       message = %SagaWeaver.Test.TestMessage{id: 1, uuid: uuid, atom_key: :test_key}
 
       second_message = %SagaWeaver.Test.TestMessageFinal{
@@ -66,7 +66,7 @@ defmodule SagaWeaver.Identifiers.DefaultIdentifierTest do
 
   describe "get_mapped_saga_ids/2" do
     test "returns a mapped id" do
-      message = %SagaWeaver.Test.TestMessage{id: 1, uuid: UUID.uuid4(), atom_key: :test_key}
+      message = %SagaWeaver.Test.TestMessage{id: 1, uuid: "test-uuid", atom_key: :test_key}
 
       unique_saga_id_mapping = %{
         TestMessage => &%{id: &1.id}

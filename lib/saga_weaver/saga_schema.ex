@@ -1,5 +1,11 @@
 defmodule SagaWeaver.SagaSchema do
-  @moduledoc false
+  @moduledoc """
+  The persisted schema returned by the deprecated SagaWeaver 0.2 API.
+
+  New code receives `%SagaWeaver.Instance{}` instead. This module remains
+  loadable so existing PostgreSQL rows and serialized Redis terms can be read
+  during migration.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -15,6 +21,7 @@ defmodule SagaWeaver.SagaSchema do
 
   @type t() :: %__MODULE__{}
 
+  @doc "Builds a changeset for the deprecated persisted saga schema."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(saga, attrs) do
     saga

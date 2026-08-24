@@ -5,11 +5,13 @@ defmodule SagaWeaver.Adapters.StorageAdapterPostgresTest do
   alias SagaWeaver.SagaSchema
 
   setup_all do
-    Application.put_env(:saga_weaver, SagaWeaver,
-      storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
-      repo: SagaWeaver.Test.Repo
-    )
+    restore =
+      SagaWeaver.TestEnv.put_env(:saga_weaver, SagaWeaver,
+        storage_adapter: SagaWeaver.Adapters.PostgresAdapter,
+        repo: SagaWeaver.Test.Repo
+      )
 
+    on_exit(restore)
     :ok
   end
 

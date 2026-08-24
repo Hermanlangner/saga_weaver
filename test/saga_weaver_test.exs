@@ -1,12 +1,4 @@
 defmodule SagaWeaverTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest SagaWeaver
-
-  setup context do
-    on_exit(fn ->
-      Redix.command(context[:conn], ["FLUSHALL"])
-    end)
-
-    :ok
-  end
 end

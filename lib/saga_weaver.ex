@@ -1,90 +1,129 @@
 defmodule SagaWeaver do
   @moduledoc """
-  The `SagaWeaver` module serves as the primary interface for executing and retrieving sagas within the SagaWeaver framework. It provides functions to orchestrate sagas based on incoming messages and to access existing saga instances.
+  Handles transport-agnostic saga messages through a stable public facade.
 
-  ## Overview
+  A saga routes each incoming message to a stable instance key and returns an
+  explicit transition from its `handle/2` callback. SagaWeaver persists that
+  transition once through the configured storage implementation.
 
-  - **execute_saga/2**: Executes a saga by processing a given message. It determines whether to start a new saga or continue an existing one based on the message.
-  - **retrieve_saga/2**: Retrieves an existing saga instance associated with a message.
+  Applications should normally define an application-owned facade:
 
-  ## Usage
+      defmodule MyApp.Sagas do
+        use SagaWeaver, otp_app: :my_app
+      end
 
-  To use `SagaWeaver`, you typically have saga modules that implement the saga logic using `use SagaWeaver.Saga`. You can then execute or retrieve sagas using the functions provided by this module.
+  Then handle and fetch instances through it:
 
-  ### Executing a Saga
+      MyApp.Sagas.handle(MyApp.OrderSaga, event)
+      MyApp.Sagas.fetch(MyApp.OrderSaga, "order:123")
 
-  The `execute_saga/2` function is used to process a message within the context of a saga. It will either start a new saga or continue an existing one.
-
-  **Example:**
-
-  ```elixir
-  alias MyApp.Sagas.OrderSaga
-  alias MyApp.Events.OrderPlaced
-
-  message = %OrderPlaced{order_id: 123, customer_id: 456}
-
-  case SagaWeaver.execute_saga(OrderSaga, message) do
-    {:ok, saga_instance} ->
-      # Saga executed successfully
-      IO.inspect(saga_instance, label: "Saga Instance")
-
-    {:noop, reason} ->
-      # No operation was performed
-  end
-  ```
-
-  ### Retrieving a Saga
-  The retrieve_saga/2 function allows you to fetch an existing saga instance based on a message. This is useful if you need to access the saga's state or context outside of the execution flow.
-
-  Example:
-  ```elixir
-  alias MyApp.Sagas.OrderSaga
-  alias MyApp.Events.OrderUpdated
-
-  message = %OrderUpdated{order_id: 123}
-
-  case SagaWeaver.retrieve_saga(OrderSaga, message) do
-  {:ok, saga_instance} ->
-    # Saga instance retrieved
-    IO.inspect(saga_instance, label: "Retrieved Saga Instance")
-
-  {:ok, :not_found} ->
-    # No saga found for the given message
-    IO.puts("Saga not found")
-
-  {:error, reason} ->
-    # An error occurred
-  end`
-
-  ```
-
-  ### Notes
-  - Ensure that your saga modules are properly defined using use SagaWeaver.Saga and implement the necessary callbacks.
-  - The execute_saga/2 function internally uses the SagaWeaver.Orchestrator to manage saga execution.
-  - The uniqueness of a saga instance is determined by the message and the saga's identity mapping. Make sure your identity mappings are correctly configured.
-
-  ### Functions
-  - execute_saga/2: Executes or continues a saga based on the provided message.
-  - retrieve_saga/2: Retrieves an existing saga instance associated with a messag
+  SagaWeaver's core is synchronous and does not require a supervision-tree
+  child. Applications remain responsible for supervising resources such as
+  their Ecto repository or Redix connection.
   """
 
   use Supervisor
 
+  alias SagaWeaver.{Config, Engine, Error, Instance}
   alias SagaWeaver.Orchestrator
+
+  @typedoc "The result of handling one routed saga message."
+  @type handle_result ::
+          {:ok, Instance.t()}
+          | {:ignored, :unrouted | :not_started | :completed | term()}
+          | {:error, Error.t()}
+
+  @typedoc "The result of fetching a saga instance."
+  @type fetch_result :: {:ok, Instance.t()} | {:error, :not_found | Error.t()}
+
+  @doc "Defines an application-owned SagaWeaver facade."
+  defmacro __using__(opts) do
+    otp_app = Keyword.fetch!(opts, :otp_app)
+
+    quote do
+      @saga_weaver_otp_app unquote(otp_app)
+
+      @doc "Returns the validated SagaWeaver configuration for this facade."
+      def config(overrides \\ []) do
+        SagaWeaver.Config.fetch!(@saga_weaver_otp_app, __MODULE__, overrides)
+      end
+
+      @doc "Handles one message for a saga through this facade."
+      def handle(saga, message, overrides \\ []) do
+        SagaWeaver.handle(
+          saga,
+          message,
+          otp_app: @saga_weaver_otp_app,
+          facade: __MODULE__,
+          config: overrides
+        )
+      end
+
+      @doc "Fetches a saga instance by its stable route key."
+      def fetch(saga, key, overrides \\ []) do
+        SagaWeaver.fetch(
+          saga,
+          key,
+          otp_app: @saga_weaver_otp_app,
+          facade: __MODULE__,
+          config: overrides
+        )
+      end
+    end
+  end
+
+  @doc """
+  Handles one message for a saga.
+
+  The saga's `route/1` callback decides whether the message starts, continues,
+  or does not apply to an instance.
+  """
+  @spec handle(module(), term(), keyword()) :: handle_result()
+  def handle(saga, message, opts \\ []) do
+    case resolve_config(opts) do
+      {:ok, config} -> Engine.handle(saga, message, config)
+      {:error, reason} -> {:error, Error.new(:config, reason)}
+    end
+  end
+
+  @doc """
+  Fetches a saga instance by its stable route key.
+  """
+  @spec fetch(module(), String.t(), keyword()) :: fetch_result()
+  def fetch(saga, key, opts \\ []) do
+    case resolve_config(opts) do
+      {:ok, config} -> Engine.fetch(saga, key, config)
+      {:error, reason} -> {:error, Error.new(:config, reason)}
+    end
+  end
+
   @impl Supervisor
   def init(_args) do
     Supervisor.init([], strategy: :one_for_one)
   end
 
+  @doc "Starts the deprecated, empty compatibility supervisor."
+  @deprecated "SagaWeaver no longer requires a supervision-tree child"
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc "Handles a message through the deprecated 0.2 orchestration API."
+  @deprecated "Use handle/2 or an application-owned facade"
   def execute_saga(saga, message) do
     Orchestrator.execute_saga(saga, message)
   end
 
+  @doc "Fetches a saga through the deprecated 0.2 message-based API."
+  @deprecated "Use fetch/2 or an application-owned facade"
   def retrieve_saga(saga, message) do
     Orchestrator.retrieve_saga(saga, message)
+  end
+
+  defp resolve_config(opts) do
+    otp_app = Keyword.get(opts, :otp_app, :saga_weaver)
+    facade = Keyword.get(opts, :facade, __MODULE__)
+    overrides = Keyword.get(opts, :config, Keyword.drop(opts, [:otp_app, :facade]))
+    Config.fetch(otp_app, facade, overrides)
   end
 end

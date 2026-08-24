@@ -1,42 +1,13 @@
 defmodule SagaWeaver.Orchestrator do
   @moduledoc """
-  The `SagaWeaver.Orchestrator` module is responsible for orchestrating the execution of sagas within the SagaWeaver framework. It handles the initiation, retrieval, execution, and completion of saga instances based on incoming messages.
+  Compatibility orchestration for SagaWeaver 0.2 applications.
 
-  ## Overview
-
-  - **Execute Saga**: Determines whether to start a new saga or continue an existing one based on the incoming message.
-  - **Handle Saga**: Processes the saga by invoking the appropriate handler and manages its state.
-  - **Start Saga**: Initializes a new saga instance if the message is eligible to start a saga.
-  - **Initialize Saga**: Sets up the initial state of a new saga and stores it using the configured storage adapter.
-  - **Retrieve Saga**: Fetches an existing saga instance based on a unique identifier derived from the message.
-
-  ## Key Functions
-
-  - `execute_saga/2`: Entry point for processing messages and orchestrating sagas.
-  - `handle_saga/3`: Handles the saga logic, updating its state, and marking it as completed if necessary.
-  - `start_saga/2`: Checks if a message can start a new saga and initializes it.
-  - `initialize_saga/2`: Creates and stores a new saga instance.
-  - `retrieve_saga/2`: Retrieves an existing saga instance based on the message.
-
-  ## Usage
-
-  The `Orchestrator` module is typically not used directly by end-users but is invoked by the SagaWeaver framework when messages are processed.
-
-  ## Examples
-
-  ```elixir
-  # Assuming `MySaga` is a module that uses SagaWeaver
-  message = %MyApp.SomeEvent{}
-  SagaWeaver.Orchestrator.execute_saga(MySaga, message)
-  ```
-
-  ## Dependencies
-  SagaWeaver.Adapters.StorageAdapter: Interface for storage operations.
-  SagaWeaver.Identifiers.SagaIdentifier: Generates unique identifiers for sagas.
-  SagaWeaver.SagaSchema: Defines the saga's data structure.
+  New code should call `SagaWeaver.handle/2` or an application-owned facade.
+  This module preserves the old callback, identifier, return, and
+  delete-on-completion behavior while existing applications migrate.
   """
   alias SagaWeaver.Adapters.StorageAdapter
-  alias SagaWeaver.Identifiers.SagaIdentifier
+  alias SagaWeaver.Compatibility
   alias SagaWeaver.SagaSchema
 
   @doc """
@@ -60,28 +31,37 @@ defmodule SagaWeaver.Orchestrator do
       {:ok, %SagaSchema{}}
 
   """
-  @spec execute_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:noop, String.t()}
+  @spec execute_saga(module(), map()) ::
+          {:ok, SagaSchema.t()} | {:noop, String.t()} | {:error, term()}
   def execute_saga(saga, message) do
     fetch_saga_result =
       case retrieve_saga(saga, message) do
         {:ok, :not_found} -> start_saga(saga, message)
         {:ok, instance} -> {:ok, instance}
+        {:error, reason} -> {:error, reason}
       end
 
     case fetch_saga_result do
       {:ok, instance} -> handle_saga(saga, instance, message)
       {:noop, reason} -> {:noop, reason}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   defp handle_saga(saga, instance, message) do
-    {:ok, updated_entity} = saga.handle_message(instance, message)
+    case saga.handle_message(instance, message) do
+      {:ok, %SagaSchema{} = updated_entity} ->
+        if updated_entity.marked_as_completed do
+          StorageAdapter.complete_saga(updated_entity)
+        end
 
-    if updated_entity.marked_as_completed do
-      StorageAdapter.complete_saga(updated_entity)
-      {:ok, updated_entity}
-    else
-      {:ok, updated_entity}
+        {:ok, updated_entity}
+
+      {:error, reason} ->
+        {:error, reason}
+
+      invalid ->
+        {:error, {:invalid_callback_result, invalid}}
     end
   end
 
@@ -106,9 +86,10 @@ defmodule SagaWeaver.Orchestrator do
       {:ok, %SagaSchema{}}
 
   """
-  @spec start_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found} | {:ok, String.t()}
+  @spec start_saga(module(), map()) ::
+          {:ok, SagaSchema.t()} | {:noop, String.t()} | {:error, term()}
   def start_saga(saga, message) do
-    if message.__struct__ in saga.started_by() do
+    if Map.get(message, :__struct__) in saga.started_by() do
       saga
       |> initialize_saga(message)
     else
@@ -138,24 +119,19 @@ defmodule SagaWeaver.Orchestrator do
       {:ok, %SagaSchema{}}
 
   """
-  @spec initialize_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
+  @spec initialize_saga(module(), map()) :: {:ok, SagaSchema.t()} | {:error, term()}
   def initialize_saga(saga, message) do
-    unique_saga_id =
-      SagaIdentifier.unique_saga_id(
-        message,
-        saga.entity_name(),
-        saga.identity_key_mapping()
-      )
+    with {:ok, unique_saga_id} <- Compatibility.v1_key(saga, message) do
+      initial_state = %SagaSchema{
+        uuid: unique_saga_id,
+        saga_name: to_string(saga.entity_name()),
+        states: %{},
+        context: %{},
+        marked_as_completed: false
+      }
 
-    initial_state = %SagaSchema{
-      uuid: unique_saga_id,
-      saga_name: to_string(saga.entity_name()),
-      states: %{},
-      context: %{},
-      marked_as_completed: false
-    }
-
-    StorageAdapter.initialize_saga(initial_state)
+      StorageAdapter.initialize_saga(initial_state)
+    end
   end
 
   @doc """
@@ -179,13 +155,11 @@ defmodule SagaWeaver.Orchestrator do
       {:ok, %SagaSchema{}}
 
   """
-  @spec retrieve_saga(atom(), map()) :: {:ok, SagaSchema.t()} | {:ok, :not_found}
+  @spec retrieve_saga(module(), map()) ::
+          {:ok, SagaSchema.t()} | {:ok, :not_found} | {:error, term()}
   def retrieve_saga(saga, message) do
-    SagaIdentifier.unique_saga_id(
-      message,
-      saga.entity_name(),
-      saga.identity_key_mapping()
-    )
-    |> StorageAdapter.get_saga()
+    with {:ok, unique_saga_id} <- Compatibility.v1_key(saga, message) do
+      StorageAdapter.get_saga(unique_saga_id)
+    end
   end
 end

@@ -1,5 +1,5 @@
 defmodule SagaWeaver.OrchestratorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias SagaWeaver.Adapters.StorageAdapter
   alias SagaWeaver.Identifiers
@@ -9,12 +9,15 @@ defmodule SagaWeaver.OrchestratorTest do
   setup_all do
     {:ok, conn} = Redix.start_link("redis://localhost:6379")
 
-    Application.put_env(:saga_weaver, SagaWeaver,
-      host: "localhost",
-      port: 6379,
-      namespace: "saga_weaver_test",
-      storage_adapter: SagaWeaver.Adapters.RedisAdapter
-    )
+    restore =
+      SagaWeaver.TestEnv.put_env(:saga_weaver, SagaWeaver,
+        host: "localhost",
+        port: 6379,
+        namespace: "saga_weaver_test",
+        storage_adapter: SagaWeaver.Adapters.RedisAdapter
+      )
+
+    on_exit(restore)
 
     {:ok, conn: conn}
   end
@@ -48,7 +51,14 @@ defmodule SagaWeaver.OrchestratorTest do
   end
 
   setup_all do
-    Application.put_env(:saga_weaver, SagaWeaver.Adapters.StorageAdapter, RedisAdapter)
+    restore =
+      SagaWeaver.TestEnv.put_env(
+        :saga_weaver,
+        SagaWeaver.Adapters.StorageAdapter,
+        RedisAdapter
+      )
+
+    on_exit(restore)
     :ok
   end
 

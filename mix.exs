@@ -1,7 +1,7 @@
 defmodule SagaWeaver.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.3.0"
   @source_url "https://github.com/Hermanlangner/saga_weaver"
 
   def project do
@@ -13,6 +13,7 @@ defmodule SagaWeaver.MixProject do
       aliases: aliases(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      dialyzer: [plt_add_apps: [:mix]],
       test_coverage: [tool: ExCoveralls],
       package: package(),
       docs: docs()
@@ -53,12 +54,12 @@ defmodule SagaWeaver.MixProject do
     [
       name: "saga_weaver",
       description: """
-      Ex Saga is an NServiceBus Saga implementation in Elixir, while being abstracted away from storage and transport.
+      Transport-agnostic saga coordination for Elixir with concurrency-safe PostgreSQL and Redis storage.
       """,
       maintainers: ["Herman Langner"],
       links: %{"GitHub" => @source_url},
       licenses: ["MIT"],
-      files: ~w(lib .formatter.exs mix.exs LICENSE README*)
+      files: ~w(lib .formatter.exs mix.exs LICENSE README.md CHANGELOG.md ARCHITECTURE.md)
     ]
   end
 
@@ -66,7 +67,25 @@ defmodule SagaWeaver.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
-      extras: ["README.md", "CHANGELOG.md"]
+      extras: ["README.md", "ARCHITECTURE.md", "CHANGELOG.md"],
+      groups_for_modules: [
+        Core: [
+          SagaWeaver,
+          SagaWeaver.Config,
+          SagaWeaver.Error,
+          SagaWeaver.Instance,
+          SagaWeaver.Saga
+        ],
+        Storage: ~r/^SagaWeaver\.Storage/,
+        Testing: [SagaWeaver.Testing],
+        Compatibility: [
+          SagaWeaver.Orchestrator,
+          SagaWeaver.SagaSchema,
+          SagaWeaver.Adapters.PostgresAdapter,
+          SagaWeaver.Adapters.RedisAdapter,
+          SagaWeaver.Adapters.StorageAdapter
+        ]
+      ]
     ]
   end
 
@@ -78,8 +97,8 @@ defmodule SagaWeaver.MixProject do
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
-      {:elixir_uuid, "~>1.2", only: [:dev, :test]},
-      {:jason, "~> 1.2"},
+      {:nimble_options, "~> 1.1"},
+      {:telemetry, "~> 1.3"},
       {:redix, "~> 1.5"},
       {:ecto, "~> 3.12"},
       {:ecto_sql, "~> 3.12"},
