@@ -1,16 +1,18 @@
-defmodule SagaExample.ExampleSagaTest do
-  use ExUnit.Case
+defmodule Sample.SimpleSagaTest do
+  use Sample.DataCase, async: true
 
-  alias SagaExample.ExampleSaga
-  alias SagaWeaver.{TestEvent1, TestEvent2, SagaOrchestrator}
+  alias SagaWeaver.SagaSchema
 
-  test "run saga with TestEvent1" do
-    event = %TestEvent1{external_id: 1, name: "Test Event 1"}
-    {:ok, _result} = SagaOrchestrator.execute_saga(ExampleSaga, event)
-  end
+  test "starts and completes the sample saga" do
+    start_message = %StartSagaMessage{id: 1, name: "Start"}
+    close_message = %CloseSagaMessage{external_id: 1, fanout_id: 1}
 
-  test "run saga with TestEvent2" do
-    event = %TestEvent2{id: 1, name: "Test Event 2"}
-    {:ok, "Saga completed"} = SagaOrchestrator.execute_saga(ExampleSaga, event)
+    assert {:ok, %SagaSchema{states: %{"start_handled" => true}}} =
+             SagaWeaver.execute_saga(SimpleSaga, start_message)
+
+    assert {:ok, %SagaSchema{marked_as_completed: true}} =
+             SagaWeaver.execute_saga(SimpleSaga, close_message)
+
+    assert {:ok, :not_found} = SagaWeaver.retrieve_saga(SimpleSaga, start_message)
   end
 end

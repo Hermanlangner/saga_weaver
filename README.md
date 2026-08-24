@@ -18,6 +18,18 @@ Distributed transactions are already hard on their own, Saga Weaver lets you foc
 - Any struct that participates in a Saga needs to be able to be transformed to the Saga identifier
 - While an Inbox/Outbox pattern is not present, we follow that at least once delivery approach. It needs to be ensured that application logic supports it.
 
+## Development
+
+The repository pins Erlang and Elixir with [mise](https://mise.jdx.dev/). After installing mise, install the project toolchain and dependencies:
+
+```shell
+mise trust
+mise install
+mix deps.get
+```
+
+If mise is not activated in your shell, run project commands through it, for example `mise exec -- mix test`.
+
 ## Installation
 
 SagaWeaver is published on [Hex](https://hexdocs.pm/saga_weaver), the package can be installed

@@ -38,8 +38,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: 1.16.x
-            otp: 26
+          - elixir: 1.20.3
+            otp: 29.0.5
             os: ubuntu-22.04
     env:
       MIX_ENV: test
@@ -115,8 +115,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: 1.16
-          otp-version: 26.2
+          elixir-version: 1.20.3
+          otp-version: 29.0.5
       - name: Fetch dependencies
         run: mix deps.get
       - name: Publish package
