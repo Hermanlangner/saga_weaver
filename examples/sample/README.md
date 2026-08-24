@@ -53,4 +53,4 @@ Sample.Sagas.fetch(SimpleSaga, "simple:1")
 ```
 
 See the repository root `README.md` for storage contracts, Telemetry events,
-testing helpers, and the 0.2 migration guide.
+and testing helpers.

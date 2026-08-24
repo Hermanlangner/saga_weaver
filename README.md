@@ -68,9 +68,8 @@ config :my_app, MyApp.Sagas,
   storage: {SagaWeaver.Storage.Postgres, repo: MyApp.Repo}
 ```
 
-`mix saga_weaver.install --storage postgres` generates the compatible
-`sagaweaver_sagas` migration. The table shape remains compatible with records
-created by SagaWeaver 0.2.
+`mix saga_weaver.install --storage postgres` generates the
+`sagaweaver_sagas` migration.
 
 ### Redis
 
@@ -280,38 +279,6 @@ Custom storage implements `SagaWeaver.Storage`:
 
 `insert_new/2` must be idempotent. `commit/3` must atomically merge disjoint
 state and context changes. Completed records must remain readable.
-
-## Migrating From 0.2
-
-The 0.2 entry points and DSL remain available for one migration release:
-
-```elixir
-SagaWeaver.execute_saga(LegacySaga, message)
-SagaWeaver.retrieve_saga(LegacySaga, message)
-```
-
-These functions retain the old `SagaSchema` return values and
-delete-on-completion behavior. They are deprecated in favor of `handle/2` and
-`fetch/2`.
-
-Existing PostgreSQL rows and Redis terms remain readable by the new adapters.
-To migrate an active saga without changing its persisted identifier, derive the
-old key in the new route callback:
-
-```elixir
-def route(message) do
-  with {:ok, key} <- SagaWeaver.Compatibility.v1_key(__MODULE__, message) do
-    {:continue, key}
-  end
-end
-```
-
-Do not rename saga modules or alter identity mappings for active 0.2 instances
-without an explicit data migration.
-
-Deprecated Redis calls still accept the old `host` and `port` configuration.
-New Redis calls require an application-supervised Redix `connection`; host and
-port are intentionally not translated into a hidden library-owned process.
 
 ## Design Principles
 

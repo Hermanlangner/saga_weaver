@@ -25,8 +25,6 @@ defmodule SagaWeaver.Config do
             retry_backoff: [type: :non_neg_integer, default: 1]
           )
 
-  @legacy_options [:storage_adapter, :repo, :host, :port, :database, :namespace, :connection]
-
   @doc """
   Resolves and validates configuration for a facade.
   """
@@ -36,7 +34,6 @@ defmodule SagaWeaver.Config do
       otp_app
       |> Application.get_env(facade, [])
       |> Keyword.merge(overrides)
-      |> normalize_legacy()
 
     with {:ok, validated} <- NimbleOptions.validate(config, @schema),
          {:ok, {adapter, adapter_opts}} <- Storage.validate(validated[:storage]) do
@@ -70,73 +67,5 @@ defmodule SagaWeaver.Config do
       {:error, reason} ->
         raise ArgumentError, "invalid SagaWeaver configuration: #{inspect(reason)}"
     end
-  end
-
-  @doc "Returns the deprecated global Redis host setting."
-  @spec host() :: term()
-  def host, do: config_value(:host)
-
-  @doc "Returns the deprecated global Redis port setting."
-  @spec port() :: term()
-  def port, do: config_value(:port)
-
-  @doc "Returns the deprecated global database setting."
-  @spec database() :: term()
-  def database, do: config_value(:database)
-
-  @doc "Returns the deprecated global Redis namespace setting."
-  @spec namespace() :: term()
-  def namespace, do: config_value(:namespace)
-
-  @doc "Returns the deprecated global Ecto repository setting."
-  @spec repo() :: term()
-  def repo, do: config_value(:repo)
-
-  @doc "Returns the deprecated global storage adapter setting."
-  @spec storage_adapter() :: term()
-  def storage_adapter, do: config_value(:storage_adapter)
-
-  @doc """
-  Returns the configuration value for the given key.
-  """
-  @spec config_value(atom()) :: any()
-  def config_value(key) do
-    :saga_weaver
-    |> Application.get_env(SagaWeaver, [])
-    |> Keyword.get(key)
-  end
-
-  defp normalize_legacy(config) do
-    if Keyword.has_key?(config, :storage) do
-      Keyword.drop(config, @legacy_options)
-    else
-      case Keyword.get(config, :storage_adapter) do
-        SagaWeaver.Adapters.PostgresAdapter ->
-          translate_legacy(
-            config,
-            {SagaWeaver.Storage.Postgres, repo: Keyword.get(config, :repo)}
-          )
-
-        SagaWeaver.Adapters.RedisAdapter ->
-          translate_legacy(
-            config,
-            {SagaWeaver.Storage.Redis,
-             connection: Keyword.get(config, :connection),
-             namespace: Keyword.get(config, :namespace)}
-          )
-
-        nil ->
-          config
-
-        adapter ->
-          translate_legacy(config, {adapter, config})
-      end
-    end
-  end
-
-  defp translate_legacy(config, storage) do
-    config
-    |> Keyword.drop(@legacy_options)
-    |> Keyword.put(:storage, storage)
   end
 end

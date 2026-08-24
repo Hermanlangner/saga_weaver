@@ -4,7 +4,7 @@ defmodule Mix.Tasks.SagaWeaver.Install do
   @shortdoc "Generates SagaWeaver storage setup"
 
   @moduledoc """
-  Generates setup instructions and, for PostgreSQL, a compatible migration.
+  Generates setup instructions and, for PostgreSQL, a storage migration.
 
       mix saga_weaver.install --storage postgres
       mix saga_weaver.install --storage redis
@@ -124,17 +124,17 @@ defmodule Mix.Tasks.SagaWeaver.Install do
 
       def change do
         create table(:sagaweaver_sagas) do
-          add :uuid, :string, null: false
-          add :saga_name, :string, null: false
-          add :states, :map, default: %{}, null: false
+          add :key, :string, null: false
+          add :saga, :string, null: false
+          add :state, :map, default: %{}, null: false
           add :context, :map, default: %{}, null: false
-          add :marked_as_completed, :boolean, default: false, null: false
+          add :status, :string, default: "active", null: false
           add :lock_version, :integer, default: 1, null: false
 
           timestamps()
         end
 
-        create unique_index(:sagaweaver_sagas, [:uuid])
+        create unique_index(:sagaweaver_sagas, [:key])
       end
     end
     """

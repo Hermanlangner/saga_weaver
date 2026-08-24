@@ -97,7 +97,7 @@ defmodule SagaWeaver.Engine do
     do: ignored(:completed, saga, key)
 
   defp ensure_saga(%Instance{saga: persisted} = instance, saga) do
-    if persisted in saga_names(saga) do
+    if persisted == Atom.to_string(saga) do
       {:ok, instance}
     else
       {:error,
@@ -106,15 +106,6 @@ defmodule SagaWeaver.Engine do
          metadata: %{saga: saga, key: instance.key, persisted_saga: persisted}
        )}
     end
-  end
-
-  defp saga_names(saga) do
-    legacy_name =
-      if function_exported?(saga, :entity_name, 0) do
-        saga.entity_name() |> to_string()
-      end
-
-    [Atom.to_string(saga), legacy_name]
   end
 
   defp handle_instance(saga, instance, message, config) do

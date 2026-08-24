@@ -3,16 +3,16 @@ defmodule SagaWeaver.Test.Repo.Migrations.AddSagaTable do
 
   def change do
     create table(:sagaweaver_sagas) do
-      add(:uuid, :string)
-      add(:saga_name, :string)
-      add(:states, :map, default: %{})
-      add(:context, :map, default: %{})
-      add(:marked_as_completed, :boolean, default: false)
-      add(:lock_version, :integer, default: 1)
+      add(:key, :string, null: false)
+      add(:saga, :string, null: false)
+      add(:state, :map, default: %{}, null: false)
+      add(:context, :map, default: %{}, null: false)
+      add(:status, :string, default: "active", null: false)
+      add(:lock_version, :integer, default: 1, null: false)
 
       timestamps()
     end
 
-    create(index(:sagaweaver_sagas, [:uuid], unique: true))
+    create(unique_index(:sagaweaver_sagas, [:key]))
   end
 end

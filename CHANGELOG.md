@@ -14,7 +14,6 @@
 - Telemetry spans for message handling and storage operations.
 - `mix saga_weaver.install` for PostgreSQL and Redis setup.
 - A minimal executable quickstart under `examples/quickstart/`.
-- `SagaWeaver.Compatibility.v1_key/2` for persisted identifier migration.
 
 ### Changed
 
@@ -26,30 +25,19 @@
 - Completed tombstones reject stale in-flight transitions.
 - Route keys are checked against the persisted saga owner before handling, and
   callbacks cannot change an instance key or saga identity during a commit.
-- Redis legacy terms are decoded in safe mode and malformed records return
+- Redis terms are decoded in safe mode and malformed records return
   tagged errors.
 - Expected routing, callback, configuration, and storage failures return tagged
   errors instead of pattern-match exceptions.
 - Package metadata now describes SagaWeaver rather than the original project
   name.
 
-### Deprecated
+### Removed
 
-- Adding `{SagaWeaver, []}` to an application supervision tree.
-- `SagaWeaver.execute_saga/2` in favor of `handle/2`.
-- `SagaWeaver.retrieve_saga/2` in favor of `fetch/2`.
-- `started_by`, `identity_key_mapping`, and `handle_message/2` for new sagas.
-- Direct use of `SagaWeaver.Orchestrator`, `SagaWeaver.SagaSchema`, and the
-  modules under `SagaWeaver.Adapters`.
-
-### Compatibility
-
-- Existing PostgreSQL rows use the same table and columns and remain readable.
-- Existing Redis values containing `%SagaWeaver.SagaSchema{}` remain readable.
-- The exact 0.2 identifier algorithm remains available through
-  `SagaWeaver.Compatibility.v1_key/2`.
-- Deprecated 0.2 entry points retain their legacy result values and
-  delete-on-completion semantics during the migration release.
+- The unreleased 0.3 API no longer carries the 0.2 orchestrator, saga schema,
+  identifier DSL, global configuration, supervisor, or storage adapters.
+- PostgreSQL and Redis use only the 0.3 instance data shape; no legacy record
+  decoding or migration helpers are included.
 
 ## 0.2.0
 

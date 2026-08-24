@@ -120,21 +120,6 @@ defmodule SagaWeaver.Instance do
   end
 
   @doc false
-  @spec from_legacy(map()) :: t()
-  def from_legacy(legacy) when is_map(legacy) do
-    %__MODULE__{
-      key: Map.fetch!(legacy, :uuid),
-      saga: Map.fetch!(legacy, :saga_name),
-      status: if(Map.get(legacy, :marked_as_completed, false), do: :completed, else: :active),
-      state: normalize_keys(Map.get(legacy, :states) || %{}),
-      context: normalize_keys(Map.get(legacy, :context) || %{}),
-      version: Map.get(legacy, :lock_version),
-      inserted_at: Map.get(legacy, :inserted_at),
-      updated_at: Map.get(legacy, :updated_at)
-    }
-  end
-
-  @doc false
   @spec apply_changes(t(), changes()) :: t()
   def apply_changes(%__MODULE__{} = instance, changes) do
     instance

@@ -1,9 +1,6 @@
 defmodule SagaWeaver.Storage.Postgres do
   @moduledoc """
   Stores saga instances in an application-owned Ecto repository.
-
-  This adapter uses the existing `sagaweaver_sagas` table and reads records
-  created by SagaWeaver 0.2 without a data migration.
   """
 
   @behaviour SagaWeaver.Storage
@@ -22,7 +19,7 @@ defmodule SagaWeaver.Storage.Postgres do
 
   @impl SagaWeaver.Storage
   def fetch(opts, key) do
-    case repo(opts).get_by(Record, uuid: key) do
+    case repo(opts).get_by(Record, key: key) do
       nil -> {:error, :not_found}
       record -> {:ok, to_instance(record)}
     end
@@ -56,9 +53,9 @@ defmodule SagaWeaver.Storage.Postgres do
   end
 
   defp fetch_and_commit(opts, key, changes, attempt) do
-    case repo(opts).get_by(Record, uuid: key) do
+    case repo(opts).get_by(Record, key: key) do
       nil -> {:error, :not_found}
-      %Record{marked_as_completed: true} -> {:error, :completed}
+      %Record{status: :completed} -> {:error, :completed}
       record -> update_record(opts, record, changes, attempt)
     end
   end
@@ -69,7 +66,7 @@ defmodule SagaWeaver.Storage.Postgres do
       |> Record.changeset(merge_changes(record, changes))
       |> repo(opts).update(stale_error_field: :lock_version)
 
-    resolve_commit(result, opts, record.uuid, changes, attempt)
+    resolve_commit(result, opts, record.key, changes, attempt)
   end
 
   defp resolve_commit({:ok, updated}, _opts, _key, _changes, _attempt) do
@@ -86,7 +83,7 @@ defmodule SagaWeaver.Storage.Postgres do
   end
 
   defp resolve_insert_conflict(opts, key, changeset) do
-    if Keyword.has_key?(changeset.errors, :uuid) do
+    if Keyword.has_key?(changeset.errors, :key) do
       fetch(opts, key)
     else
       {:error, changeset}
@@ -95,12 +92,12 @@ defmodule SagaWeaver.Storage.Postgres do
 
   defp merge_changes(record, changes) do
     attrs = %{
-      states: Map.merge(record.states || %{}, Map.get(changes, :state, %{})),
+      state: Map.merge(record.state || %{}, Map.get(changes, :state, %{})),
       context: Map.merge(record.context || %{}, Map.get(changes, :context, %{}))
     }
 
     case Map.get(changes, :status) do
-      :completed -> Map.put(attrs, :marked_as_completed, true)
+      :completed -> Map.put(attrs, :status, :completed)
       nil -> attrs
     end
   end
@@ -115,14 +112,26 @@ defmodule SagaWeaver.Storage.Postgres do
 
   defp to_record(%Instance{} = instance) do
     %Record{
-      uuid: instance.key,
-      saga_name: instance.saga,
-      states: instance.state,
+      key: instance.key,
+      saga: instance.saga,
+      state: instance.state,
       context: instance.context,
-      marked_as_completed: instance.status == :completed
+      status: instance.status
     }
   end
 
-  defp to_instance(%Record{} = record), do: Instance.from_legacy(record)
+  defp to_instance(%Record{} = record) do
+    %Instance{
+      key: record.key,
+      saga: record.saga,
+      status: record.status,
+      state: record.state || %{},
+      context: record.context || %{},
+      version: record.lock_version,
+      inserted_at: record.inserted_at,
+      updated_at: record.updated_at
+    }
+  end
+
   defp repo(opts), do: Keyword.fetch!(opts, :repo)
 end

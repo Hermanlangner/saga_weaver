@@ -1,7 +1,5 @@
 %Doctor.Config{
   ignore_modules: [
-    ~r/^SagaWeaver\.Adapters\./,
-    SagaWeaver.Compatibility.V1Message,
     SagaWeaver.Engine,
     SagaWeaver.Storage.Postgres.Record
   ],

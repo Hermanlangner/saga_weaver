@@ -33,13 +33,15 @@ defmodule Mix.Tasks.SagaWeaver.InstallTest do
     assert output =~ "connection: SagaWeaver.SagaRedis"
   end
 
-  test "generates the compatible PostgreSQL table" do
+  test "generates the PostgreSQL table" do
     migration =
       Install.migration("MyApp.Repo.Migrations.CreateSagaWeaverSagas")
 
     assert migration =~ "create table(:sagaweaver_sagas)"
+    assert migration =~ "add :key, :string, null: false"
+    assert migration =~ "add :status, :string, default: \"active\", null: false"
     assert migration =~ "add :lock_version, :integer, default: 1"
-    assert migration =~ "create unique_index(:sagaweaver_sagas, [:uuid])"
+    assert migration =~ "create unique_index(:sagaweaver_sagas, [:key])"
   end
 
   test "rejects invalid module names" do

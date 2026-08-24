@@ -35,7 +35,6 @@ defmodule SagaWeaver.MixProject do
   def application do
     [
       extra_applications: [:logger]
-      # mod: {SagaWeaver, []}
     ]
   end
 
@@ -77,14 +76,7 @@ defmodule SagaWeaver.MixProject do
           SagaWeaver.Saga
         ],
         Storage: ~r/^SagaWeaver\.Storage/,
-        Testing: [SagaWeaver.Testing],
-        Compatibility: [
-          SagaWeaver.Orchestrator,
-          SagaWeaver.SagaSchema,
-          SagaWeaver.Adapters.PostgresAdapter,
-          SagaWeaver.Adapters.RedisAdapter,
-          SagaWeaver.Adapters.StorageAdapter
-        ]
+        Testing: [SagaWeaver.Testing]
       ]
     ]
   end

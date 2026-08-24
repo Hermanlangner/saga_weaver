@@ -22,10 +22,7 @@ defmodule SagaWeaver do
   their Ecto repository or Redix connection.
   """
 
-  use Supervisor
-
   alias SagaWeaver.{Config, Engine, Error, Instance}
-  alias SagaWeaver.Orchestrator
 
   @typedoc "The result of handling one routed saga message."
   @type handle_result ::
@@ -95,29 +92,6 @@ defmodule SagaWeaver do
       {:ok, config} -> Engine.fetch(saga, key, config)
       {:error, reason} -> {:error, Error.new(:config, reason)}
     end
-  end
-
-  @impl Supervisor
-  def init(_args) do
-    Supervisor.init([], strategy: :one_for_one)
-  end
-
-  @doc "Starts the deprecated, empty compatibility supervisor."
-  @deprecated "SagaWeaver no longer requires a supervision-tree child"
-  def start_link(opts) do
-    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  @doc "Handles a message through the deprecated 0.2 orchestration API."
-  @deprecated "Use handle/2 or an application-owned facade"
-  def execute_saga(saga, message) do
-    Orchestrator.execute_saga(saga, message)
-  end
-
-  @doc "Fetches a saga through the deprecated 0.2 message-based API."
-  @deprecated "Use fetch/2 or an application-owned facade"
-  def retrieve_saga(saga, message) do
-    Orchestrator.retrieve_saga(saga, message)
   end
 
   defp resolve_config(opts) do

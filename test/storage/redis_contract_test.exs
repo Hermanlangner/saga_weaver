@@ -30,30 +30,6 @@ defmodule SagaWeaver.Storage.RedisContractTest do
 
   defp storage(context), do: context.storage
 
-  test "reads records written by SagaWeaver 0.2", context do
-    legacy = %SagaWeaver.SagaSchema{
-      uuid: "legacy-redis",
-      saga_name: "LegacySaga",
-      states: %{placed: true},
-      context: %{customer_id: 42},
-      marked_as_completed: true
-    }
-
-    redis_key = "#{context.namespace}:#{legacy.uuid}"
-
-    assert {:ok, "OK"} =
-             Redix.command(context.connection, ["SET", redis_key, :erlang.term_to_binary(legacy)])
-
-    assert {:ok,
-            %SagaWeaver.Instance{
-              key: "legacy-redis",
-              saga: "LegacySaga",
-              status: :completed,
-              state: %{"placed" => true},
-              context: %{"customer_id" => 42}
-            }} = SagaWeaver.Storage.fetch(storage(context), legacy.uuid)
-  end
-
   test "returns an error for a malformed record", context do
     redis_key = "#{context.namespace}:malformed"
 

@@ -2,13 +2,12 @@ defmodule SagaWeaver.Storage.Redis do
   @moduledoc """
   Stores saga instances through an application-owned Redix connection.
 
-  Values written by SagaWeaver 0.2 are decoded into `%SagaWeaver.Instance{}`
-  without rewriting their keys or payloads during reads.
+  Instances are serialized as Erlang terms and decoded in safe mode.
   """
 
   @behaviour SagaWeaver.Storage
 
-  alias SagaWeaver.{Instance, SagaSchema}
+  alias SagaWeaver.Instance
 
   @commit_script """
   local current = redis.call('GET', KEYS[1])
@@ -126,12 +125,11 @@ defmodule SagaWeaver.Storage.Redis do
     end
   end
 
-  # Stored terms need legacy decoding; safe mode forbids creating atoms.
+  # Safe mode prevents persisted input from creating atoms.
   # sobelow_skip ["Misc.BinToTerm"]
   defp decode(binary) do
     case :erlang.binary_to_term(binary, [:safe]) do
       %Instance{} = instance -> {:ok, Instance.clear_changes(instance)}
-      %SagaSchema{} = legacy -> {:ok, Instance.from_legacy(legacy)}
       value -> {:error, {:unsupported_record, record_type(value)}}
     end
   rescue
